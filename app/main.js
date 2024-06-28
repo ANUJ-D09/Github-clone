@@ -15,7 +15,7 @@ switch (command) {
         if (param === "-p") readObject(hash);
         break;
     case "hash-object":
-        const file = process.argv[3];
+        const file = process.argv[4];
         if (param === "-w") hashObject(file);
         break;
     default:
