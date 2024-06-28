@@ -70,10 +70,11 @@ function lsTree(hash, nameOnly) {
     let offset = 0;
     while (offset < inflated.length) {
         const spaceIndex = inflated.indexOf(0x20, offset);
-        if (spaceIndex === -1) break;
-        const mode = inflated.slice(offset, spaceIndex).toString();
         const nullIndex = inflated.indexOf(0x00, spaceIndex);
-        if (nullIndex === -1) break;
+
+        if (spaceIndex === -1 || nullIndex === -1) break;
+
+        const mode = inflated.slice(offset, spaceIndex).toString();
         const filename = inflated.slice(spaceIndex + 1, nullIndex).toString();
         const hash = inflated.slice(nullIndex + 1, nullIndex + 21).toString('hex');
 
