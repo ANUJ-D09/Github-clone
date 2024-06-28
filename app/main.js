@@ -69,17 +69,12 @@ function lsTree(hash, nameOnly) {
 
     let offset = 0;
     while (offset < inflated.length) {
-        // Find the mode (permission bits)
         const spaceIndex = inflated.indexOf(0x20, offset);
         if (spaceIndex === -1) break;
         const mode = inflated.slice(offset, spaceIndex).toString();
-
-        // Find the null byte, which marks the end of the filename
         const nullIndex = inflated.indexOf(0x00, spaceIndex);
         if (nullIndex === -1) break;
         const filename = inflated.slice(spaceIndex + 1, nullIndex).toString();
-
-        // The SHA1 hash is 20 bytes long
         const hash = inflated.slice(nullIndex + 1, nullIndex + 21).toString('hex');
 
         if (nameOnly) {
