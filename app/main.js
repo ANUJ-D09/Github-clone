@@ -19,11 +19,7 @@ switch (command) {
         break;
     case "ls-tree":
         const treeHash = process.argv[4];
-        if (param === "--name-only") {
-            lsTree(treeHash, true);
-        } else {
-            lsTree(treeHash, false);
-        }
+        lsTree(treeHash, param === "--name-only");
         break;
     default:
         throw new Error(`Unknown command ${command}`);
