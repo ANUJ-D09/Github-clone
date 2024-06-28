@@ -91,7 +91,6 @@ function lsTree() {
     const fileName = hash.slice(2);
     const objectPath = path.join(__dirname, ".git", "objects", dirName, fileName);
 
-    // Check if the file exists
     if (!fs.existsSync(objectPath)) {
         console.error(`Error: Tree object with SHA ${hash} does not exist.`);
         process.exit(1); // Exit with error code 1
