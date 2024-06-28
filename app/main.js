@@ -42,13 +42,12 @@ function createSHA() {
         let header = "blob " + fileContent.length + "\0"
         let store = header + fileContent;
         let hash = crypto.createHash('sha1').update(store).digest('hex');
-        const directory = hash.substring(0, 2);
-        const fileName = hash.substring(2);
+
         const directory = hash.slice(0, 2);
         const fileName = hash.slice(2);
         const dirPath = path.join(__dirname, ".git", "objects", directory);
         const filePath = path.join(__dirname, ".git", "objects", directory, fileName);
-        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+
         //NOTE: The recursive option in fs.mkdirSync() determines whether parent directories should be created if they do not exist.
         fs.mkdirSync(dirPath, { recursive: true });
         //or
