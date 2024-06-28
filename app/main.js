@@ -63,7 +63,7 @@ function hashObject(file) {
 function lsTree(hash, nameOnly) {
     const dirName = hash.slice(0, 2);
     const fileName = hash.slice(2);
-    const objectPath = path.join(process.cwd(), '.git', 'objects', dirName, fileName);
+    const objectPath = path.join(__dirname, ".git", "objects", directory);
 
     if (!fs.existsSync(objectPath)) {
         throw new Error(`Tree object with SHA ${hash} does not exist.`);
