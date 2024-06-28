@@ -82,7 +82,6 @@ function hashFile(file) {
 }
 
 function lsTree() {
-    // ./your-git.sh ls-tree [--name-only] <hash>
     const isNameOnly = process.argv[3] === "--name-only";
     const hash = process.argv[isNameOnly ? 4 : 3];
     if (!hash) {
@@ -91,6 +90,12 @@ function lsTree() {
     const dirName = hash.slice(0, 2);
     const fileName = hash.slice(2);
     const objectPath = path.join(__dirname, ".git", "objects", dirName, fileName);
+
+    // Check if the file exists
+    if (!fs.existsSync(objectPath)) {
+        throw new Error(`Tree object with SHA ${hash} does not exist.`);
+    }
+
     const dataFromFile = fs.readFileSync(objectPath);
     const decompressed = zlib.inflateSync(dataFromFile);
     const contents = decompressed.subarray(decompressed.indexOf("\0") + 1);
