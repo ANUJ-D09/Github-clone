@@ -2,21 +2,20 @@ const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
 const crypto = require("crypto");
-// Uncomment this block to pass the first stage
+
 const command = process.argv[2];
 const param = process.argv[3];
+
 switch (command) {
     case "init":
         createGitDirectory();
         break;
     case "cat-file":
-        const param = process.argv[3];
         const hash = process.argv[4];
-        hash = process.argv[4];
         if (param === "-p") readObject(hash);
         break;
     case "hash-object":
-        let file = process.argv[4];
+        const file = process.argv[3];
         if (param === "-w") hashObject(file);
         break;
     default:
