@@ -93,7 +93,8 @@ function lsTree() {
 
     // Check if the file exists
     if (!fs.existsSync(objectPath)) {
-        throw new Error(`Tree object with SHA ${hash} does not exist.`);
+        console.error(`Error: Tree object with SHA ${hash} does not exist.`);
+        process.exit(1); // Exit with error code 1
     }
 
     const dataFromFile = fs.readFileSync(objectPath);
@@ -108,4 +109,6 @@ function lsTree() {
         .join("\n")
         .concat("\n")
     );
+
+    process.exit(0); // Exit with success code 0
 }
