@@ -24,13 +24,7 @@ switch (command) {
         throw new Error(`Unknown command ${command}`);
 }
 
-function createGitDirectory() {
-    fs.mkdirSync(path.join(__dirname, ".git"), { recursive: true });
-    fs.mkdirSync(path.join(__dirname, ".git", "objects"), { recursive: true });
-    fs.mkdirSync(path.join(__dirname, ".git", "refs"), { recursive: true });
-    fs.writeFileSync(path.join(__dirname, ".git", "HEAD"), "ref: refs/heads/main\n");
-    console.log("Initialized git directory");
-}
+
 
 function createObject(flag, blobSha) {
     const dirName = blobSha.slice(0, 2);
@@ -57,22 +51,35 @@ function createObject(flag, blobSha) {
     }
 }
 
-function hashObject() {
-    const flag = process.argv[3];
-    if (flag !== "-w") return;
-
-    const file = process.argv[4];
-    const fileContent = fs.readFileSync(file);
-    const header = `blob ${fileContent.length}\0`;
-    const data = Buffer.concat([Buffer.from(header), fileContent]);
-    const hash = crypto.createHash("sha1").update(data).digest("hex");
-    const dirPath = path.join(__dirname, ".git", "objects", hash.slice(0, 2));
-    const filePath = path.join(dirPath, hash.slice(2));
-
-    fs.mkdirSync(dirPath, { recursive: true });
-    fs.writeFileSync(filePath, zlib.deflateSync(data));
-
+function hashObject(file) {
+    const fileContent = fs.readFileSync(path.join(process.cwd(), file));
+    const header = blob $ { fileContent.length }\
+    0;
+    const content = Buffer.concat([Buffer.from(header), fileContent]);
+    const hash = crypto.createHash("sha1").update(content).digest("hex");
+    const dir = path.join(process.cwd(), ".git", "objects", hash.slice(0, 2));
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const compressed = zlib.deflateSync(content);
+    fs.writeFileSync(path.join(dir, hash.slice(2)), compressed);
     process.stdout.write(hash);
+}
+
+function createGitDirectory() {
+    console.log(process.cwd());
+    fs.mkdirSync(path.join(process.cwd(), ".git"), { recursive: true });
+    fs.mkdirSync(path.join(process.cwd(), ".git", "objects"), { recursive: true });
+    fs.mkdirSync(path.join(process.cwd(), ".git", "refs"), { recursive: true });
+    fs.writeFileSync(path.join(process.cwd(), ".git", "HEAD"), "ref: refs/heads/main\n");
+    console.log("Initialized git directory");
+}
+
+function readObject(hash) {
+    const file = fs.readFileSync(path.join(process.cwd(), ".git", "objects", hash.slice(0, 2), hash.slice(2)));
+    const inflated = zlib.inflateSync(file);
+    let content = inflated.toString();
+
+    content = content.slice(content.indexOf("\0") + 1).replace(/\n/g, "");
+    process.stdout.write(content);
 }
 
 function lsTree() {
