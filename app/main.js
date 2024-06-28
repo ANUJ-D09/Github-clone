@@ -96,20 +96,23 @@ function lsTree() {
 
     const fileContent = fs.readFileSync(filePath);
     const inflatedData = zlib.inflateSync(fileContent);
-    const entries = inflatedData.toString("utf-8").split("\0").filter(entry => entry.length > 0);
+    const entries = inflatedData.toString("utf-8").split("\0");
 
     if (flag === "--name-only") {
-        const names = entries.map(entry => {
-            const [mode, name] = entry.split(" ")[1].split("\t");
+        const names = entries.filter(entry => entry !== "").map(entry => {
+            const [mode, rest] = entry.split(" ");
+            const name = rest.slice(rest.indexOf("\t") + 1); // extract name after mode and space
             return name;
         });
         names.forEach(name => process.stdout.write(`${name}\n`));
     } else {
         entries.forEach(entry => {
-            const [mode, details] = entry.split(" ");
-            const sha = details.slice(0, 40);
-            const name = details.slice(41);
-            process.stdout.write(`${mode} ${sha} ${name}\n`);
+            if (entry.length > 0) {
+                const [mode, rest] = entry.split(" ");
+                const sha = rest.slice(0, 40);
+                const name = rest.slice(41); // skip space after SHA
+                process.stdout.write(`${mode} ${sha} ${name}\n`);
+            }
         });
     }
 }
