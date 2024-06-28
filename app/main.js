@@ -4,64 +4,30 @@ const zlib = require("zlib");
 const crypto = require("crypto");
 
 const command = process.argv[2];
+const param = process.argv[3];
 
 switch (command) {
     case "init":
         createGitDirectory();
         break;
     case "cat-file":
-        const flag = process.argv[3];
-        const blobSha = process.argv[4];
-        createObject(flag, blobSha);
+        const hash = process.argv[4];
+        if (param === "-p") readObject(hash);
         break;
     case "hash-object":
-        hashObject();
+        const file = process.argv[4];
+        if (param === "-w") hashObject(file);
         break;
     case "ls-tree":
-        lsTree();
+        const treeHash = process.argv[4];
+        if (param === "--name-only") {
+            lsTree(treeHash, true);
+        } else {
+            lsTree(param, false);
+        }
         break;
     default:
         throw new Error(`Unknown command ${command}`);
-}
-
-
-
-function createObject(flag, blobSha) {
-    const dirName = blobSha.slice(0, 2);
-    const fileName = blobSha.slice(2);
-    const filePath = path.join(__dirname, ".git", "objects", dirName, fileName);
-    if (fs.existsSync(filePath)) {
-        const fileContent = fs.readFileSync(filePath);
-        if (flag === "-t") {
-            // Print object type
-            const inflatedData = zlib.inflateSync(fileContent);
-            const headerEndIndex = inflatedData.indexOf(0x00); // Find the null byte separator
-            const objectType = inflatedData.slice(0, headerEndIndex).toString("utf-8");
-            process.stdout.write(objectType);
-        } else if (flag === "-p") {
-            // Print object content
-            const inflatedContent = zlib.inflateSync(fileContent).toString();
-            const [header, blobContent] = inflatedContent.split("\0");
-            process.stdout.write(blobContent);
-        } else {
-            throw new Error(`Invalid flag: ${flag}`);
-        }
-    } else {
-        throw new Error(`Object with SHA ${blobSha} does not exist.`);
-    }
-}
-
-function hashObject(file) {
-    const fileContent = fs.readFileSync(path.join(process.cwd(), file));
-    const header = blob $ { fileContent.length }\
-    0;
-    const content = Buffer.concat([Buffer.from(header), fileContent]);
-    const hash = crypto.createHash("sha1").update(content).digest("hex");
-    const dir = path.join(process.cwd(), ".git", "objects", hash.slice(0, 2));
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    const compressed = zlib.deflateSync(content);
-    fs.writeFileSync(path.join(dir, hash.slice(2)), compressed);
-    process.stdout.write(hash);
 }
 
 function createGitDirectory() {
@@ -82,37 +48,41 @@ function readObject(hash) {
     process.stdout.write(content);
 }
 
-function lsTree() {
-    const flag = process.argv[3];
-    const treeSha = process.argv[4];
+function hashObject(file) {
+    const fileContent = fs.readFileSync(path.join(process.cwd(), file));
+    const header = `blob ${fileContent.length}\0`;
+    const content = Buffer.concat([Buffer.from(header), fileContent]);
+    const hash = crypto.createHash("sha1").update(content).digest("hex");
+    const dir = path.join(process.cwd(), ".git", "objects", hash.slice(0, 2));
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const compressed = zlib.deflateSync(content);
+    fs.writeFileSync(path.join(dir, hash.slice(2)), compressed);
+    process.stdout.write(hash);
+}
 
-    const dirName = treeSha.slice(0, 2);
-    const fileName = treeSha.slice(2);
-    const filePath = path.join(__dirname, ".git", "objects", dirName, fileName);
+function lsTree(hash, nameOnly) {
+    const dirName = hash.slice(0, 2);
+    const fileName = hash.slice(2);
+    const objectPath = path.join(process.cwd(), '.git', 'objects', dirName, fileName);
+    const dataFromFile = fs.readFileSync(objectPath);
+    const inflated = zlib.inflateSync(dataFromFile);
+    const buffer = Buffer.from(inflated);
 
-    if (!fs.existsSync(filePath)) {
-        throw new Error(`Tree object with SHA ${treeSha} does not exist.`);
-    }
+    let offset = 0;
+    while (offset < buffer.length) {
+        const spaceIndex = buffer.indexOf(0x20, offset); // Find the space character
+        const nullIndex = buffer.indexOf(0x00, spaceIndex); // Find the null character
 
-    const fileContent = fs.readFileSync(filePath);
-    const inflatedData = zlib.inflateSync(fileContent);
-    const entries = inflatedData.toString("utf-8").split("\0");
+        const mode = buffer.slice(offset, spaceIndex).toString();
+        const filename = buffer.slice(spaceIndex + 1, nullIndex).toString();
+        const hash = buffer.slice(nullIndex + 1, nullIndex + 21).toString('hex');
 
-    if (flag === "--name-only") {
-        const names = entries.filter(entry => entry !== "").map(entry => {
-            const [mode, rest] = entry.split(" ");
-            const name = rest.slice(rest.indexOf("\t") + 1); // extract name after mode and space
-            return name;
-        });
-        names.forEach(name => process.stdout.write(`${name}\n`));
-    } else {
-        entries.forEach(entry => {
-            if (entry.length > 0) {
-                const [mode, rest] = entry.split(" ");
-                const sha = rest.slice(0, 40);
-                const name = rest.slice(41); // skip space after SHA
-                process.stdout.write(`${mode} ${sha} ${name}\n`);
-            }
-        });
+        if (nameOnly) {
+            process.stdout.write(filename + "\n");
+        } else {
+            process.stdout.write(`${mode} ${hash} ${filename}\n`);
+        }
+
+        offset = nullIndex + 21;
     }
 }
