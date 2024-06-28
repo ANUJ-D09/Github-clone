@@ -31,16 +31,25 @@ switch (command) {
 }
 
 function createGitDirectory() {
-    console.log(process.cwd());
-    fs.mkdirSync(path.join(process.cwd(), ".git"), { recursive: true });
-    fs.mkdirSync(path.join(process.cwd(), ".git", "objects"), { recursive: true });
-    fs.mkdirSync(path.join(process.cwd(), ".git", "refs"), { recursive: true });
-    fs.writeFileSync(path.join(process.cwd(), ".git", "HEAD"), "ref: refs/heads/main\n");
-    console.log("Initialized git directory");
+    const gitDir = path.join(process.cwd(), ".git");
+    console.log("Initializing git directory at:", gitDir);
+
+    fs.mkdirSync(gitDir, { recursive: true });
+    fs.mkdirSync(path.join(gitDir, "objects"), { recursive: true });
+    fs.mkdirSync(path.join(gitDir, "refs"), { recursive: true });
+    fs.writeFileSync(path.join(gitDir, "HEAD"), "ref: refs/heads/main\n");
+
+    console.log("Initialized git directory successfully.");
 }
 
 function readObject(hash) {
-    const file = fs.readFileSync(path.join(process.cwd(), ".git", "objects", hash.slice(0, 2), hash.slice(2)));
+    const objectPath = getObjectPath(hash);
+
+    if (!fs.existsSync(objectPath)) {
+        throw new Error(`Object with SHA ${hash} does not exist.`);
+    }
+
+    const file = fs.readFileSync(objectPath);
     const inflated = zlib.inflateSync(file);
     let content = inflated.toString();
 
@@ -54,16 +63,18 @@ function hashObject(file) {
     const content = Buffer.concat([Buffer.from(header), fileContent]);
     const hash = crypto.createHash("sha1").update(content).digest("hex");
     const dir = path.join(process.cwd(), ".git", "objects", hash.slice(0, 2));
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+
     const compressed = zlib.deflateSync(content);
     fs.writeFileSync(path.join(dir, hash.slice(2)), compressed);
     process.stdout.write(hash);
 }
 
 function lsTree(hash, nameOnly) {
-    const dirName = hash.slice(0, 2);
-    const fileName = hash.slice(2);
-    const objectPath = path.join(__dirname, '.git', 'objects', dirName, fileName);
+    const objectPath = getObjectPath(hash);
 
     if (!fs.existsSync(objectPath)) {
         throw new Error(`Tree object with SHA ${hash} does not exist.`);
@@ -84,7 +95,7 @@ function lsTree(hash, nameOnly) {
 
         const mode = buffer.slice(offset, spaceIndex).toString('utf-8');
         const filename = buffer.slice(spaceIndex + 1, nullIndex).toString('utf-8');
-        const sha = buffer.slice(nullIndex + 1, nullIndex + 21).toString('hex');
+        const sha = buffer.slice(nullIndex + 1, nullIndex + 20).toString('hex');
 
         if (nameOnly) {
             process.stdout.write(filename + "\n");
@@ -94,4 +105,10 @@ function lsTree(hash, nameOnly) {
 
         offset = nullIndex + 21;
     }
+}
+
+function getObjectPath(hash) {
+    const dirName = hash.slice(0, 2);
+    const fileName = hash.slice(2);
+    return path.join(process.cwd(), ".git", "objects", dirName, fileName);
 }
