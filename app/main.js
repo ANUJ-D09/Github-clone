@@ -1,25 +1,17 @@
 const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
-const crypto = require("crypto");
 
 const command = process.argv[2];
-const param = process.argv[3];
+const flag = process.argv[3];
+const treeSha = process.argv[4];
 
 switch (command) {
     case "init":
         createGitDirectory();
         break;
-    case "cat-file":
-        const hash = process.argv[4];
-        if (param === "-p") readObject(hash);
-        break;
-    case "hash-object":
-        const file = process.argv[4];
-        if (param === "-w") hashObject(file);
-        break;
     case "ls-tree":
-        lsTree(process.argv.slice(3));
+        lsTree(treeSha, flag === "--name-only");
         break;
     default:
         throw new Error(`Unknown command ${command}`);
@@ -40,57 +32,32 @@ function createGitDirectory() {
     }
 }
 
-function readObject(hash) {
+function lsTree(treeSha, nameOnly) {
     try {
-        const filePath = path.join(__dirname, ".git", "objects", hash.slice(0, 2), hash.slice(2));
-        console.log("Reading object from:", filePath);
-        const file = fs.readFileSync(filePath);
-        const inflated = zlib.inflateSync(file);
-        let content = inflated.toString();
-        content = content.slice(content.indexOf("\0") + 1).replace(/\n/g, "");
-        process.stdout.write(content);
-    } catch (err) {
-        console.error("Error reading object:", err);
-    }
-}
+        const objectFilePath = getObjectFilePath(treeSha);
+        const fileContent = fs.readFileSync(objectFilePath);
+        const inflated = zlib.inflateSync(fileContent);
 
-function hashObject(file) {
-    try {
-        const filePath = path.join(__dirname, file);
-        console.log("Hashing object from:", filePath);
-        const fileContent = fs.readFileSync(filePath);
-        const header = `blob ${fileContent.length}\0`;
-        const content = Buffer.concat([Buffer.from(header), fileContent]);
-        const hash = crypto.createHash("sha1").update(content).digest("hex");
-        const objectsDir = path.join(__dirname, ".git", "objects", hash.slice(0, 2));
-        fs.mkdirSync(objectsDir, { recursive: true });
-        const compressed = zlib.deflateSync(content);
-        fs.writeFileSync(path.join(objectsDir, hash.slice(2)), compressed);
-        process.stdout.write(hash);
-    } catch (err) {
-        console.error("Error hashing object:", err);
-    }
-}
-
-function lsTree(args) {
-    try {
-        const [flag, hash] = args;
-        const objectPath = path.join(__dirname, ".git", "objects", hash.slice(0, 2), hash.slice(2));
-        console.log("Listing tree from:", objectPath);
-        const compressed = fs.readFileSync(objectPath);
-        const inflated = zlib.inflateSync(compressed);
         const entries = parseTreeEntries(inflated);
-        if (flag === "--name-only") {
+
+        if (nameOnly) {
             const names = entries.map(entry => entry.name).join("\n");
             process.stdout.write(names + "\n");
         } else {
             entries.forEach(entry => {
-                process.stdout.write(`${entry.mode} ${entry.hash} ${entry.name}\n`);
+                process.stdout.write(`${entry.mode} ${entry.type} ${entry.sha}    ${entry.name}\n`);
             });
         }
     } catch (err) {
         console.error("Error listing tree:", err);
     }
+}
+
+function getObjectFilePath(sha) {
+    const objectsDir = path.join(__dirname, ".git", "objects");
+    const dirName = sha.slice(0, 2);
+    const fileName = sha.slice(2);
+    return path.join(objectsDir, dirName, fileName);
 }
 
 function parseTreeEntries(buffer) {
@@ -102,10 +69,12 @@ function parseTreeEntries(buffer) {
 
         const mode = buffer.slice(offset, spaceIndex).toString();
         const name = buffer.slice(spaceIndex + 1, nullIndex).toString();
-        const hash = buffer.slice(nullIndex + 1, nullIndex + 21).toString('hex');
+        const sha = buffer.slice(nullIndex + 1, nullIndex + 21).toString("hex");
 
-        entries.push({ mode, name, hash });
-        offset = nullIndex + 21;
+        const type = (mode.startsWith("040000")) ? "tree" : "blob";
+
+        entries.push({ mode, type, sha, name });
+        offset = nullIndex + 21; // Move offset to next entry
     }
     return entries;
 }
