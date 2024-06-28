@@ -1,52 +1,61 @@
-const fs = require("fs");
-const crypto = require("crypto");
-const path = require("path");
-const zlib = require("zlib");
+import * as fs from "node:fs";
+import * as path from "node:path/posix";
+import * as zlib from "node:zlib";
+import * as process from "node:process";
+import * as crypto from "node:crypto";
 const command = process.argv[2];
 switch (command) {
     case "init":
         createGitDirectory();
         break;
     case "cat-file":
-        catFile();
+        readGitBlob(process.argv[4]);
         break;
     case "hash-object":
-        hashObject();
+        hashGitObject(process.argv[4]);
         break;
     default:
         throw new Error(`Unknown command ${command}`);
 }
-require("zlib");
 
 function createGitDirectory() {
-    fs.mkdirSync(path.join(__dirname, ".git"), { recursive: true });
-    fs.mkdirSync(path.join(__dirname, ".git", "objects"), { recursive: true });
-    fs.mkdirSync(path.join(__dirname, ".git", "refs"), { recursive: true });
-    fs.writeFileSync(path.join(__dirname, ".git", "HEAD"), "ref: refs/heads/master\n");
+    fs.mkdirSync(path.join(process.cwd(), ".git"), { recursive: true });
+    fs.mkdirSync(path.join(process.cwd(), ".git", "objects"), {
+        recursive: true,
+    });
+    fs.mkdirSync(path.join(process.cwd(), ".git", "refs"), { recursive: true });
+    fs.writeFileSync(
+        path.join(process.cwd(), ".git", "HEAD"),
+        "ref: refs/heads/main\n",
+        "utf-8",
+    );
     console.log("Initialized git directory");
 }
-async function catFile() {
-    const blob = process.argv[4];
-    const directoryName = blob.slice(0, 2);
-    const fileName = blob.slice(2);
-    const data = fs.readFileSync(path.join(__dirname, ".git", "objects", directoryName, fileName));
-    const uncompressed = zlib.inflateSync(data).toString();
-    const [type, content] = uncompressed.split("\x00");
+/** @param {string} blobSha  */
+function readGitBlob(blobSha) {
+    const objDir = blobSha.substring(0, 2);
+    const objFile = blobSha.substring(2);
+    const data = fs.readFileSync(
+        path.join(process.cwd(), ".git", "objects", objDir, objFile),
+    );
+    const inflated = zlib.inflateSync(data).toString();
+    const [_prefix, content] = inflated.split("\0");
     process.stdout.write(content);
 }
-
-function hashObject() {
-    const writeCommand = process.argv[3];
-    if (writeCommand !== "-w") return;
-    const file = process.argv[4];
-    const content = fs.readFileSync(file);
-    const header = `blob ${content.length}\x00`;
-    const data = header + content;
-    const hash = crypto.createHash("sha1").update(data).digest("hex");
-    const objectsDirPath = path.join(__dirname, ".git", "objects");
-    const hashDirPath = path.join(objectsDirPath, hash.slice(0, 2));
-    const filePath = path.join(hashDirPath, hash.slice(2));
-    fs.mkdirSync(hashDirPath, { recursive: true });
-    fs.writeFileSync(filePath, zlib.deflateSync(data));
-    process.stdout.write(hash);
+/** @param {string} file */
+function hashGitObject(file) {
+    const { size } = fs.statSync(file);
+    const data = fs.readFileSync(file);
+    const content = `blob ${size}\0${data.toString()}`;
+    const blobSha = crypto.createHash("sha1").update(content).digest("hex");
+    const objDir = blobSha.substring(0, 2);
+    const objFile = blobSha.substring(2);
+    fs.mkdirSync(path.join(process.cwd(), ".git", "objects", objDir), {
+        recursive: true,
+    });
+    fs.writeFileSync(
+        path.join(process.cwd(), ".git", "objects", objDir, objFile),
+        zlib.deflateSync(content),
+    );
+    process.stdout.write(`${blobSha}\n`);
 }
