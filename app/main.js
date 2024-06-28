@@ -26,15 +26,20 @@ switch (command) {
 }
 
 function createGitDirectory() {
-    fs.mkdirSync(path.join(__dirname, ".git"), { recursive: true });
-    fs.mkdirSync(path.join(__dirname, ".git", "objects"), { recursive: true });
-    fs.mkdirSync(path.join(__dirname, ".git", "refs"), { recursive: true });
+    try {
+        fs.mkdirSync(path.join(__dirname, ".git"), { recursive: true });
+        fs.mkdirSync(path.join(__dirname, ".git", "objects"), { recursive: true });
+        fs.mkdirSync(path.join(__dirname, ".git", "refs"), { recursive: true });
 
-    fs.writeFileSync(
-        path.join(__dirname, ".git", "HEAD"),
-        "ref: refs/heads/main\n"
-    );
-    console.log("Initialized git directory"); // Added this line to print the success message
+        fs.writeFileSync(
+            path.join(__dirname, ".git", "HEAD"),
+            "ref: refs/heads/main\n"
+        );
+        console.log("Initialized git directory"); // Ensure this message is printed
+    } catch (err) {
+        console.error("Failed to initialize git directory:", err.message);
+        process.exit(1); // Exit with error code 1 if initialization fails
+    }
 }
 
 
