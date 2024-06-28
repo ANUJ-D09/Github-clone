@@ -1,37 +1,38 @@
 const fs = require("fs");
+const crypto = require("crypto");
 const path = require("path");
 const zlib = require("zlib");
-
 const command = process.argv[2];
-
 switch (command) {
     case "init":
         createGitDirectory();
         break;
-    case 'cat-file':
-        const hash = process.argv[4];
-        catFile(hash);
+    case "cat-file":
+        catFile();
         break;
-
-    case 'hash-object':
+    case "hash-object":
         hashObject();
         break;
     default:
         throw new Error(`Unknown command ${command}`);
 }
+require("zlib");
 
 function createGitDirectory() {
-    fs.mkdirSync(path.join(process.cwd(), ".git"), { recursive: true });
-    fs.mkdirSync(path.join(process.cwd(), ".git", "objects"), { recursive: true });
-    fs.mkdirSync(path.join(process.cwd(), ".git", "refs"), { recursive: true });
-    fs.writeFileSync(path.join(process.cwd(), ".git", "HEAD"), "ref: refs/heads/main\n");
+    fs.mkdirSync(path.join(__dirname, ".git"), { recursive: true });
+    fs.mkdirSync(path.join(__dirname, ".git", "objects"), { recursive: true });
+    fs.mkdirSync(path.join(__dirname, ".git", "refs"), { recursive: true });
+    fs.writeFileSync(path.join(__dirname, ".git", "HEAD"), "ref: refs/heads/master\n");
     console.log("Initialized git directory");
 }
-async function catFile(hash) {
-    const content = await fs.readFileSync(path.join(process.cwd(), ".git", "objects", hash.slice(0, 2), hash.slice(2)));
-    const dataUnzipped = zlib.inflateSync(content);
-    const res = dataUnzipped.toString().split('\0')[1];
-    process.stdout.write(res);
+async function catFile() {
+    const blob = process.argv[4];
+    const directoryName = blob.slice(0, 2);
+    const fileName = blob.slice(2);
+    const data = fs.readFileSync(path.join(__dirname, ".git", "objects", directoryName, fileName));
+    const uncompressed = zlib.inflateSync(data).toString();
+    const [type, content] = uncompressed.split("\x00");
+    process.stdout.write(content);
 }
 
 function hashObject() {
