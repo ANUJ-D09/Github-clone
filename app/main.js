@@ -26,7 +26,6 @@ switch (command) {
 }
 
 function createGitDirectory() {
-    // ./your_git.sh init
     fs.mkdirSync(path.join(__dirname, ".git"), { recursive: true });
     fs.mkdirSync(path.join(__dirname, ".git", "objects"), { recursive: true });
     fs.mkdirSync(path.join(__dirname, ".git", "refs"), { recursive: true });
@@ -35,8 +34,9 @@ function createGitDirectory() {
         path.join(__dirname, ".git", "HEAD"),
         "ref: refs/heads/main\n"
     );
-    console.log("Initialized git directory");
+    console.log("Initialized git directory"); // Added this line to print the success message
 }
+
 
 function catFile() {
     // ./your-git.sh cat-file -p <hash>
