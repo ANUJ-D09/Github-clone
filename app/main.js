@@ -66,16 +66,21 @@ function lsTree(hash, nameOnly) {
     const objectPath = path.join(process.cwd(), '.git', 'objects', dirName, fileName);
     const dataFromFile = fs.readFileSync(objectPath);
     const inflated = zlib.inflateSync(dataFromFile);
-    const buffer = Buffer.from(inflated);
 
     let offset = 0;
-    while (offset < buffer.length) {
-        const spaceIndex = buffer.indexOf(0x20, offset); // Find the space character
-        const nullIndex = buffer.indexOf(0x00, spaceIndex); // Find the null character
+    while (offset < inflated.length) {
+        // Find the mode (permission bits)
+        const spaceIndex = inflated.indexOf(0x20, offset);
+        if (spaceIndex === -1) break;
+        const mode = inflated.slice(offset, spaceIndex).toString();
 
-        const mode = buffer.slice(offset, spaceIndex).toString();
-        const filename = buffer.slice(spaceIndex + 1, nullIndex).toString();
-        const hash = buffer.slice(nullIndex + 1, nullIndex + 21).toString('hex');
+        // Find the null byte, which marks the end of the filename
+        const nullIndex = inflated.indexOf(0x00, spaceIndex);
+        if (nullIndex === -1) break;
+        const filename = inflated.slice(spaceIndex + 1, nullIndex).toString();
+
+        // The SHA1 hash is 20 bytes long
+        const hash = inflated.slice(nullIndex + 1, nullIndex + 21).toString('hex');
 
         if (nameOnly) {
             process.stdout.write(filename + "\n");
