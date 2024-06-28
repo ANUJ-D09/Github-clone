@@ -66,16 +66,23 @@ function lsTree(hash, nameOnly) {
     const objectPath = path.join(process.cwd(), '.git', 'objects', dirName, fileName);
     const dataFromFile = fs.readFileSync(objectPath);
     const inflated = zlib.inflateSync(dataFromFile);
-    const entries = inflated.toString('utf-8').split('\x00').slice(1);
-    const names = entries
-        .filter((entry, index) => index % 2 !== 0)
-        .map(entry => entry.split('\n')[0]);
-    if (nameOnly) {
-        process.stdout.write(names.join('\n') + '\n');
-    } else {
-        const details = entries
-            .filter((entry, index) => index % 2 !== 0)
-            .map((entry, index) => `${entry.split('\n')[0]} ${entries[index * 2].split(' ')[0]}`);
-        process.stdout.write(details.join('\n') + '\n');
+    const buffer = Buffer.from(inflated);
+
+    let offset = 0;
+    while (offset < buffer.length) {
+        const spaceIndex = buffer.indexOf(0x20, offset); // Find the space character
+        const nullIndex = buffer.indexOf(0x00, spaceIndex); // Find the null character
+
+        const mode = buffer.slice(offset, spaceIndex).toString();
+        const filename = buffer.slice(spaceIndex + 1, nullIndex).toString();
+        const hash = buffer.slice(nullIndex + 1, nullIndex + 21).toString('hex');
+
+        if (nameOnly) {
+            process.stdout.write(filename + "\n");
+        } else {
+            process.stdout.write(`${mode} ${hash} ${filename}\n`);
+        }
+
+        offset = nullIndex + 21;
     }
 }
