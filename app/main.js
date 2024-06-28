@@ -77,6 +77,7 @@ function lsTree(treeSha, nameOnly) {
     }
 }
 
+
 function getObjectFilePath(sha) {
     const objectsDir = path.join(__dirname, ".git", "objects");
     const dirName = sha.slice(0, 2);
