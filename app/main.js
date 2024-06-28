@@ -34,7 +34,7 @@ function createGitDirectory() {
         fs.mkdirSync(objectsPath, { recursive: true });
         fs.mkdirSync(refsPath, { recursive: true });
         fs.writeFileSync(path.join(gitPath, "HEAD"), "ref: refs/heads/main\n");
-        console.log("Initialized git directory");
+        console.log("Initialized git directory at:", __dirname);
     } catch (err) {
         console.error("Error initializing git directory:", err);
     }
@@ -43,6 +43,7 @@ function createGitDirectory() {
 function readObject(hash) {
     try {
         const filePath = path.join(__dirname, ".git", "objects", hash.slice(0, 2), hash.slice(2));
+        console.log("Reading object from:", filePath);
         const file = fs.readFileSync(filePath);
         const inflated = zlib.inflateSync(file);
         let content = inflated.toString();
@@ -56,6 +57,7 @@ function readObject(hash) {
 function hashObject(file) {
     try {
         const filePath = path.join(__dirname, file);
+        console.log("Hashing object from:", filePath);
         const fileContent = fs.readFileSync(filePath);
         const header = `blob ${fileContent.length}\0`;
         const content = Buffer.concat([Buffer.from(header), fileContent]);
@@ -74,6 +76,7 @@ function lsTree(args) {
     try {
         const [flag, hash] = args;
         const objectPath = path.join(__dirname, ".git", "objects", hash.slice(0, 2), hash.slice(2));
+        console.log("Listing tree from:", objectPath);
         const compressed = fs.readFileSync(objectPath);
         const inflated = zlib.inflateSync(compressed);
         const entries = parseTreeEntries(inflated);
