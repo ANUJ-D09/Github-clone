@@ -102,3 +102,4 @@ function getObjectFilePath(sha) {
     const dirName = sha.slice(0, 2);
     const fileName = sha.slice(2);
     return path.join(objectsDir, dirName, fileName);
+}
