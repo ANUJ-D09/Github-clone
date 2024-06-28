@@ -2,88 +2,87 @@ const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
 const crypto = require("crypto");
+
 const command = process.argv[2];
+const param = process.argv[3];
+
 switch (command) {
     case "init":
         createGitDirectory();
         break;
     case "cat-file":
-        getCatFile();
+        const hash = process.argv[4];
+        if (param === "-p") readObject(hash);
         break;
     case "hash-object":
-        createSHA();
+        const file = process.argv[4];
+        if (param === "-w") hashObject(file);
         break;
     case "ls-tree":
-        createTree();
+        const treeHash = process.argv[4];
+        if (param === "--name-only") {
+            lsTree(treeHash, true);
+        } else {
+            lsTree(param, false);
+        }
         break;
     default:
         throw new Error(`Unknown command ${command}`);
 }
 
-function createTree() {
-    const flag = process.argv[3];
-    if (flag == "--name-only") {
-        const sha = process.argv[4];
-        const directory = sha.slice(0, 2);
-        const fileName = sha.slice(2);
-        const filePath = path.join(__dirname, ".git", "objects", directory, fileName);
-        let inflatedContent = zlib.inflateSync(fs.readFileSync(filePath)).toString().split('\0');
-        let content = inflatedContent.slice(1).filter(value => value.includes(" "));
-        let names = content.map(value => value.split(" ")[1]);
-        names.forEach((name) => process.stdout.write(`${name}\n`));
-    }
-}
-
-function createSHA() {
-    const flag = process.argv[3];
-    if (flag == "-w") {
-        const file = process.argv[4];
-        let fileContent = fs.readFileSync(file, 'utf-8');
-        let header = "blob " + fileContent.length + "\0"
-        let store = header + fileContent;
-        let hash = crypto.createHash('sha1').update(store).digest('hex');
-
-        const directory = hash.slice(0, 2);
-        const fileName = hash.slice(2);
-        const dirPath = path.join(__dirname, ".git", "objects", directory);
-        const filePath = path.join(__dirname, ".git", "objects", directory, fileName);
-
-        //NOTE: The recursive option in fs.mkdirSync() determines whether parent directories should be created if they do not exist.
-        fs.mkdirSync(dirPath, { recursive: true });
-        //or
-        // fs.mkdirSync(path.dirname(filePath), { recursive: true });
-        fs.writeFileSync(filePath, zlib.deflateSync(store));
-        process.stdout.write(hash); //prints a 40-character SHA hash to stdout
-    }
-}
-
-function getCatFile() {
-    const flag = process.argv[3];
-    switch (flag) {
-        case "-p":
-            let hash_val = process.argv[4];
-            let objHashDir = hash_val.slice(0, 2);
-            let blobFileName = hash_val.slice(2);
-            const filePath = path.join(__dirname, ".git", "objects", objHashDir, blobFileName);
-            if (fs.existsSync(filePath)) {
-                let fileContent = fs.readFileSync(filePath);
-                let uncompressedContent = zlib.unzipSync(fileContent).toString();
-                let [header, blobContent] = uncompressedContent.split("\0");
-                process.stdout.write(blobContent);
-            } else {
-                console.log("File does not exists!");
-            }
-            break;
-        default:
-            break;
-    }
-    const objectPath = path.join(__dirname, ".git", "objects");
-}
-
 function createGitDirectory() {
-    fs.mkdirSync(path.join(__dirname, ".git"), { recursive: true });
-    fs.mkdirSync(path.join(__dirname, ".git", "objects"), { recursive: true });
-    fs.mkdirSync(path.join(__dirname, ".git", "refs"), { recursive: true });
-    fs.writeFileSync(path.join(__dirname, ".git", "HEAD"), "ref: refs/heads/main\n");
+    console.log(process.cwd());
+    fs.mkdirSync(path.join(process.cwd(), ".git"), { recursive: true });
+    fs.mkdirSync(path.join(process.cwd(), ".git", "objects"), { recursive: true });
+    fs.mkdirSync(path.join(process.cwd(), ".git", "refs"), { recursive: true });
+    fs.writeFileSync(path.join(process.cwd(), ".git", "HEAD"), "ref: refs/heads/main\n");
     console.log("Initialized git directory");
+}
+
+function readObject(hash) {
+    const file = fs.readFileSync(path.join(process.cwd(), ".git", "objects", hash.slice(0, 2), hash.slice(2)));
+    const inflated = zlib.inflateSync(file);
+    let content = inflated.toString();
+
+    content = content.slice(content.indexOf("\0") + 1).replace(/\n/g, "");
+    process.stdout.write(content);
+}
+
+function hashObject(file) {
+    const fileContent = fs.readFileSync(path.join(process.cwd(), file));
+    const header = `blob ${fileContent.length}\0`;
+    const content = Buffer.concat([Buffer.from(header), fileContent]);
+    const hash = crypto.createHash("sha1").update(content).digest("hex");
+    const dir = path.join(process.cwd(), ".git", "objects", hash.slice(0, 2));
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const compressed = zlib.deflateSync(content);
+    fs.writeFileSync(path.join(dir, hash.slice(2)), compressed);
+    process.stdout.write(hash);
+}
+
+function lsTree(hash, nameOnly) {
+    const dirName = hash.slice(0, 2);
+    const fileName = hash.slice(2);
+    const objectPath = path.join(process.cwd(), '.git', 'objects', dirName, fileName);
+    const dataFromFile = fs.readFileSync(objectPath);
+    const inflated = zlib.inflateSync(dataFromFile);
+    const buffer = Buffer.from(inflated);
+
+    let offset = 0;
+    while (offset < buffer.length) {
+        const spaceIndex = buffer.indexOf(0x20, offset); // Find the space character
+        const nullIndex = buffer.indexOf(0x00, spaceIndex); // Find the null character
+
+        const mode = buffer.slice(offset, spaceIndex).toString();
+        const filename = buffer.slice(spaceIndex + 1, nullIndex).toString();
+        const hash = buffer.slice(nullIndex + 1, nullIndex + 21).toString('hex');
+
+        if (nameOnly) {
+            process.stdout.write(filename + "\n");
+        } else {
+            process.stdout.write(`${mode} ${hash} ${filename}\n`);
+        }
+
+        offset = nullIndex + 21;
+    }
 }
