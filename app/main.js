@@ -13,7 +13,9 @@ switch (command) {
         catFile(hash);
         break;
 
-
+    case 'hash-object':
+        hashObject();
+        break;
     default:
         throw new Error(`Unknown command ${command}`);
 }
@@ -30,4 +32,20 @@ async function catFile(hash) {
     const dataUnzipped = zlib.inflateSync(content);
     const res = dataUnzipped.toString().split('\0')[1];
     process.stdout.write(res);
+}
+
+function hashObject() {
+    const writeCommand = process.argv[3];
+    if (writeCommand !== "-w") return;
+    const file = process.argv[4];
+    const content = fs.readFileSync(file);
+    const header = `blob ${content.length}\x00`;
+    const data = header + content;
+    const hash = crypto.createHash("sha1").update(data).digest("hex");
+    const objectsDirPath = path.join(__dirname, ".git", "objects");
+    const hashDirPath = path.join(objectsDirPath, hash.slice(0, 2));
+    const filePath = path.join(hashDirPath, hash.slice(2));
+    fs.mkdirSync(hashDirPath, { recursive: true });
+    fs.writeFileSync(filePath, zlib.deflateSync(data));
+    process.stdout.write(hash);
 }
