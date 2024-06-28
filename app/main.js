@@ -18,8 +18,7 @@ switch (command) {
         if (param === "-w") hashObject(file);
         break;
     case "ls-tree":
-        const treeHash = process.argv[4];
-        lsTree(treeHash, param === "--name-only");
+        lsTree();
         break;
     default:
         throw new Error(`Unknown command ${command}`);
@@ -55,35 +54,26 @@ function hashObject(file) {
     process.stdout.write(hash);
 }
 
-function lsTree(treeHash, nameOnly) {
-    const objectPath = path.join(process.cwd(), '.git', 'objects', treeHash.slice(0, 2), treeHash.slice(2));
+function lsTree() {
 
-    if (!fs.existsSync(objectPath)) {
-        throw new Error(`Tree object with SHA ${treeHash} does not exist.`);
+    const isNameOnly = process.argv[3] === "--name-only";
+    const hash = process.argv[isNameOnly ? 4 : 3];
+    if (!hash) {
+        throw new Error("Missing arguments");
     }
-
+    const dirName = hash.slice(0, 2);
+    const fileName = hash.slice(2);
+    const objectPath = path.join(__dirname, ".git", "objects", dirName, fileName);
     const dataFromFile = fs.readFileSync(objectPath);
-    const inflated = zlib.inflateSync(dataFromFile);
-    const buffer = Buffer.from(inflated);
+    const decompressed = zlib.inflateSync(dataFromFile);
+    const contents = decompressed.subarray(decompressed.indexOf("\0") + 1);
 
-    let offset = 0;
-    while (offset < buffer.length) {
-        const spaceIndex = buffer.indexOf(0x20, offset); // Find the space character
-        const nullIndex = buffer.indexOf(0x00, spaceIndex); // Find the null character
-
-        if (nullIndex === -1) {
-            throw new Error(`Invalid tree object format.`);
-        }
-
-        const mode = buffer.slice(offset, spaceIndex).toString('utf-8');
-        const filename = buffer.slice(spaceIndex + 1, nullIndex).toString('utf-8');
-
-        if (nameOnly) {
-            process.stdout.write(filename + "\n");
-        } else {
-            process.stdout.write(`${mode} ${filename}\n`);
-        }
-
-        offset = nullIndex + 21;
-    }
+    process.stdout.write(
+        parseContents(contents, [])
+        .map(({ mode, name }) => {
+            return isNameOnly ? name : `${mode} ${name}`;
+        })
+        .join("\n")
+        .concat("\n")
+    );
 }
