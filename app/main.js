@@ -26,67 +26,83 @@ switch (command) {
 }
 
 function createGitDirectory() {
-    console.log(process.cwd());
-    fs.mkdirSync(path.join(process.cwd(), ".git"), { recursive: true });
-    fs.mkdirSync(path.join(process.cwd(), ".git", "objects"), { recursive: true });
-    fs.mkdirSync(path.join(process.cwd(), ".git", "refs"), { recursive: true });
-    fs.writeFileSync(path.join(process.cwd(), ".git", "HEAD"), "ref: refs/heads/main\n");
-    console.log("Initialized git directory");
+    const gitPath = path.join(__dirname, ".git");
+    const objectsPath = path.join(gitPath, "objects");
+    const refsPath = path.join(gitPath, "refs");
+    try {
+        fs.mkdirSync(gitPath, { recursive: true });
+        fs.mkdirSync(objectsPath, { recursive: true });
+        fs.mkdirSync(refsPath, { recursive: true });
+        fs.writeFileSync(path.join(gitPath, "HEAD"), "ref: refs/heads/main\n");
+        console.log("Initialized git directory");
+    } catch (err) {
+        console.error("Error initializing git directory:", err);
+    }
 }
 
 function readObject(hash) {
-    const file = fs.readFileSync(path.join(process.cwd(), ".git", "objects", hash.slice(0, 2), hash.slice(2)));
-    const inflated = zlib.inflateSync(file);
-    let content = inflated.toString();
-
-    content = content.slice(content.indexOf("\0") + 1).replace(/\n/g, "");
-    process.stdout.write(content);
+    try {
+        const filePath = path.join(__dirname, ".git", "objects", hash.slice(0, 2), hash.slice(2));
+        const file = fs.readFileSync(filePath);
+        const inflated = zlib.inflateSync(file);
+        let content = inflated.toString();
+        content = content.slice(content.indexOf("\0") + 1).replace(/\n/g, "");
+        process.stdout.write(content);
+    } catch (err) {
+        console.error("Error reading object:", err);
+    }
 }
 
 function hashObject(file) {
-    const fileContent = fs.readFileSync(path.join(process.cwd(), file));
-    const header = `blob ${fileContent.length}\0`;
-    const content = Buffer.concat([Buffer.from(header), fileContent]);
-    const hash = crypto.createHash("sha1").update(content).digest("hex");
-    const dir = path.join(process.cwd(), ".git", "objects", hash.slice(0, 2));
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    const compressed = zlib.deflateSync(content);
-    fs.writeFileSync(path.join(dir, hash.slice(2)), compressed);
-    process.stdout.write(hash);
+    try {
+        const filePath = path.join(__dirname, file);
+        const fileContent = fs.readFileSync(filePath);
+        const header = `blob ${fileContent.length}\0`;
+        const content = Buffer.concat([Buffer.from(header), fileContent]);
+        const hash = crypto.createHash("sha1").update(content).digest("hex");
+        const objectsDir = path.join(__dirname, ".git", "objects", hash.slice(0, 2));
+        fs.mkdirSync(objectsDir, { recursive: true });
+        const compressed = zlib.deflateSync(content);
+        fs.writeFileSync(path.join(objectsDir, hash.slice(2)), compressed);
+        process.stdout.write(hash);
+    } catch (err) {
+        console.error("Error hashing object:", err);
+    }
 }
 
-function lsTree([_flag, hash]) {
-    // get the directory and filename from the hash
-    const [dirname, filename] = [hash.slice(0, 2), hash.slice(2)];
-    // read the file
-    const compressed = fs.readFileSync(path.join(__dirname, ".git", "objects", dirname, filename));
-    // decompress
-    const decompressed = zlib.unzipSync(compressed);
-    // header
-    // console.log(decompressed.subarray(0, decompressed.indexOf("\0")).toString());
-    // contents
-    const contents = decompressed.subarray(decompressed.indexOf("\0") + 1);
-    process.stdout.write(
-        parseContents(contents, [])
-        .map(({ name }) => name + "\n")
-        .join("")
-    );
-    // [mode] [file/folder name]\0[SHA-1 of referencing blob or tree]
-    function parseContents(contents, result = []) {
-        if (contents.length === 0) return result;
-        const white_index = contents.indexOf(" ");
-        const null_index = contents.indexOf("\0");
-        const hash_index = null_index + 1 + 20;
-        return parseContents(contents.subarray(hash_index + 1), [
-            ...result,
-            {
-                // mode
-                mode: contents.subarray(0, white_index).toString(),
-                // file/folder name
-                name: contents.subarray(white_index + 1, null_index).toString(),
-                // SHA-1 of referencing blob or tree
-                hash: contents.subarray(null_index + 1, hash_index).toString("hex"),
-            },
-        ]);
+function lsTree(args) {
+    try {
+        const [flag, hash] = args;
+        const objectPath = path.join(__dirname, ".git", "objects", hash.slice(0, 2), hash.slice(2));
+        const compressed = fs.readFileSync(objectPath);
+        const inflated = zlib.inflateSync(compressed);
+        const entries = parseTreeEntries(inflated);
+        if (flag === "--name-only") {
+            const names = entries.map(entry => entry.name).join("\n");
+            process.stdout.write(names + "\n");
+        } else {
+            entries.forEach(entry => {
+                process.stdout.write(`${entry.mode} ${entry.hash} ${entry.name}\n`);
+            });
+        }
+    } catch (err) {
+        console.error("Error listing tree:", err);
     }
+}
+
+function parseTreeEntries(buffer) {
+    const entries = [];
+    let offset = 0;
+    while (offset < buffer.length) {
+        const spaceIndex = buffer.indexOf(0x20, offset); // Find the space character
+        const nullIndex = buffer.indexOf(0x00, spaceIndex); // Find the null character
+
+        const mode = buffer.slice(offset, spaceIndex).toString();
+        const name = buffer.slice(spaceIndex + 1, nullIndex).toString();
+        const hash = buffer.slice(nullIndex + 1, nullIndex + 21).toString('hex');
+
+        entries.push({ mode, name, hash });
+        offset = nullIndex + 21;
+    }
+    return entries;
 }
