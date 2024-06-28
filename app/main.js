@@ -75,8 +75,8 @@ function lsTree(treeHash, nameOnly) {
             throw new Error(`Invalid tree object format.`);
         }
 
-        const mode = buffer.slice(offset, spaceIndex).toString();
-        const filename = buffer.slice(spaceIndex + 1, nullIndex).toString();
+        const mode = buffer.slice(offset, spaceIndex).toString('utf-8');
+        const filename = buffer.slice(spaceIndex + 1, nullIndex).toString('utf-8');
 
         if (nameOnly) {
             process.stdout.write(filename + "\n");
