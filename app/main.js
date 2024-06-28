@@ -12,7 +12,7 @@ switch (command) {
     case "cat-file":
         const param = process.argv[3];
         const hash = process.argv[4];
-        let hash = process.argv[4];
+        hash = process.argv[4];
         if (param === "-p") readObject(hash);
         break;
     case "hash-object":
