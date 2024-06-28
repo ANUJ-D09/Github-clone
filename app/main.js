@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
-const crypto = require("crypto");
 
 const command = process.argv[2];
 const param = process.argv[3];
@@ -37,7 +36,7 @@ function createGitDirectory() {
 }
 
 function readObject(hash) {
-    const file = fs.readFileSync(path.join(process.cwd(), ".git", "objects", hash.slice(0, 2), hash.slice(2)));
+    const file = fs.readFileSync(getObjectFilePath(hash));
     const inflated = zlib.inflateSync(file);
     let content = inflated.toString();
 
