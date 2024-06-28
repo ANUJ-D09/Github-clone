@@ -64,6 +64,11 @@ function lsTree(hash, nameOnly) {
     const dirName = hash.slice(0, 2);
     const fileName = hash.slice(2);
     const objectPath = path.join(process.cwd(), '.git', 'objects', dirName, fileName);
+
+    if (!fs.existsSync(objectPath)) {
+        throw new Error(`Tree object with SHA ${hash} does not exist.`);
+    }
+
     const dataFromFile = fs.readFileSync(objectPath);
     const inflated = zlib.inflateSync(dataFromFile);
     const buffer = Buffer.from(inflated);
@@ -73,14 +78,18 @@ function lsTree(hash, nameOnly) {
         const spaceIndex = buffer.indexOf(0x20, offset); // Find the space character
         const nullIndex = buffer.indexOf(0x00, spaceIndex); // Find the null character
 
-        const mode = buffer.slice(offset, spaceIndex).toString();
-        const filename = buffer.slice(spaceIndex + 1, nullIndex).toString();
-        const hash = buffer.slice(nullIndex + 1, nullIndex + 21).toString('hex');
+        if (nullIndex === -1) {
+            throw new Error(`Invalid tree object format.`);
+        }
+
+        const mode = buffer.slice(offset, spaceIndex).toString('utf-8');
+        const filename = buffer.slice(spaceIndex + 1, nullIndex).toString('utf-8');
+        const sha = buffer.slice(nullIndex + 1, nullIndex + 21).toString('hex');
 
         if (nameOnly) {
             process.stdout.write(filename + "\n");
         } else {
-            process.stdout.write(`${mode} ${hash} ${filename}\n`);
+            process.stdout.write(`${mode} ${sha} ${filename}\n`);
         }
 
         offset = nullIndex + 21;
