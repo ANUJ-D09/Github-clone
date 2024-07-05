@@ -1,228 +1,220 @@
 const fs = require("fs");
 const path = require("path");
-const zlib = require("zlib");
-const { createHash } = require("crypto");
+const zlib = require("node:zlib");
+const crypto = require("crypto");
 
-const BASE_FOLDER_PATH = path.join(process.cwd(), '.git'); // Base Git folder path
+const PARSE_FUNCTIONS = {
+    tree: createTreeContent,
+    blob: createBlobContent,
+    commit: createCommitContent,
+};
 
-// Get the command and the flag from the input
-const command = process.argv[2];
-if (process.argv[3] && process.argv[3].startsWith('-')) {
-    global.flag = process.argv[3];
-} else {
-    global.flag = '';
-}
+function writeGitObject(hash, content, basePath = "") {
+    // Receive a SHA1 hash and file content and write a new git object
 
-switch (command) {
-    case "init":
-        initializeGitDirectory();
-        break;
-    case "cat-file":
-        readBlobObject();
-        break;
-    case "hash-object":
-        const hash = writeBlobObject();
-        process.stdout.write(hash);
-        break;
-    case "ls-tree":
-        {
-            const flag = process.argv[3];
-            const treeSHA = process.argv[4];
-            if (flag === "--name-only") {
-                printTreeObject(treeSHA);
-            } else {
-                throw new Error(`Unknown flag ${flag}`);
-            }
-            break;
-        }
-    case "write-tree":
-        returnTreeObjectHash();
-        break;
-    case "commit-tree":
-        const treeSHA = process.argv[3];
-        const parentCommitSHA = process.argv[5];
-        const message = process.argv[7];
-        const commitSHA = commitTree(treeSHA, parentCommitSHA, message);
-        process.stdout.write(commitSHA);
-        break;
-    default:
-        throw new Error(`Unknown command ${command}`);
-}
+    const objectFolder = hash.slice(0, 2);
+    const objectName = hash.slice(2);
 
-function initializeGitDirectory() {
-    fs.mkdirSync(BASE_FOLDER_PATH, { recursive: true });
-    fs.mkdirSync(path.join(BASE_FOLDER_PATH, "objects"), { recursive: true });
-    fs.mkdirSync(path.join(BASE_FOLDER_PATH, "refs"), { recursive: true });
-
-    fs.writeFileSync(path.join(process.cwd(), ".git", "HEAD"), "ref: refs/heads/main\n");
-    console.log("Initialized git directory");
-}
-
-function readBlobObject() {
-    const blobSha = process.argv[4];
-
-    const shaFirst = blobSha.match(/.{1,2}/g)[0];
-
-    const shaData = fs.readFileSync(path.join(process.cwd(), ".git", "objects", shaFirst, blobSha.slice(2)));
-
-    let unzippedData = zlib.inflateSync(shaData);
-
-    if (!unzippedData) unzippedData = zlib.unzipSync(shaData);
-    unzippedData = unzippedData.toString();
-
-    unzippedData = unzippedData.split('\0')[1];
-
-    process.stdout.write(unzippedData);
-}
-
-function writeBlobObject() {
-    const fileName = process.argv[4];
-
-    const data = fs.readFileSync(fileName);
-
-    const shaData = `blob ${data.length}\0${data}`;
-
-    const hash = createHash('sha1').update(shaData).digest('hex');
-
-    if (flag === '-w') {
-        fs.mkdirSync(path.join(BASE_FOLDER_PATH, 'objects', hash.slice(0, 2)), { recursive: true });
-
+    if (fs.existsSync(path.join(basePath, ".git", "objects", objectFolder))) {
         fs.writeFileSync(
-            path.join(BASE_FOLDER_PATH, 'objects', hash.slice(0, 2), hash.slice(2)),
-            zlib.deflateSync(shaData)
+            path.join(basePath, ".git", "objects", objectFolder, objectName),
+            zlib.deflateSync(content),
         );
+
+        return objectName;
+    } else if (
+        fs.existsSync(path.join(basePath, ".git", "objects", objectName))
+    ) {
+        throw new Error("Git object already exist");
     }
 
-    return hash;
-}
-
-function writeTreeObject(currentPath = process.cwd()) {
-    let workingDir = fs.readdirSync(currentPath).filter(item => item !== '.git');
-    let treeObject = [];
-
-    workingDir.forEach(content => {
-        const entryPath = path.join(currentPath, content);
-        const stat = fs.statSync(entryPath);
-
-        if (stat.isFile()) {
-            treeObject.push({
-                mode: '100644',
-                name: content,
-                hash: writeBlobObject(process.argv[4] = entryPath, flag = '')
-            });
-        } else if (stat.isDirectory()) {
-            treeObject.push({
-                mode: '40000',
-                name: content,
-                hash: writeTreeObject(entryPath)
-            });
-        }
+    fs.mkdirSync(path.join(basePath, ".git", "objects", objectFolder), {
+        recursive: true,
     });
 
-    const treeData = treeObject.reduce((acc, { mode, name, hash }) => {
+    fs.writeFileSync(
+        path.join(basePath, ".git", "objects", objectFolder, objectName),
+        zlib.deflateSync(content),
+    );
+
+    return objectName;
+}
+
+function sha1(data) {
+    const generator = crypto.createHash("sha1");
+    generator.update(data);
+    return generator.digest("hex");
+}
+
+function resolveGitObjectPath(hash, basePath = "") {
+    const dirName = hash.slice(0, 2);
+    const fileName = hash.slice(2);
+    return path.join(basePath, ".git", "objects", dirName, fileName);
+}
+
+function formatBlob(content) {
+    content = content.toString();
+    const data = `blob ${content.length}\0` + content;
+    return data;
+}
+
+function createBlobContent(data) {
+    if (!data) {
+        throw new Error("No data to be found");
+    }
+
+    // Attach header
+    const content = Buffer.concat([Buffer.from(`blob ${data.length}\x00`), data]);
+
+    const hash = sha1(content);
+
+    return { hash, content };
+}
+
+// Fix parse tree entries
+function parseTreeEntries(data) {
+    const result = [];
+    let startIndex = 0;
+
+    while (startIndex < data.length) {
+        const modeEndIndex = data.indexOf(" ", startIndex);
+        if (modeEndIndex === -1) break; // Exit loop if delimiter not found
+        const mode = data.slice(startIndex, modeEndIndex).toString();
+
+        const fileNameStartIndex = modeEndIndex + 1;
+        const nullByteIndex = data.indexOf("\0", fileNameStartIndex);
+        if (nullByteIndex === -1) break; // Exit loop if delimiter not found
+        const name = data.slice(fileNameStartIndex, nullByteIndex).toString();
+
+        const hashStartIndex = nullByteIndex + 1;
+        const hashEndIndex = hashStartIndex + 20;
+        const hash = data.slice(hashStartIndex, hashEndIndex).toString("hex");
+
+        result.push({ mode, name, hash });
+
+        startIndex = hashEndIndex;
+    }
+
+    return result;
+}
+
+function createTreeContent(tree, entries = false) {
+    if (!entries) {
+        entries = parseTreeEntries(tree);
+    } else if (entries) {
+        entries = tree;
+    }
+
+    const content = entries.reduce((acc, { mode, name, hash }) => {
         return Buffer.concat([
             acc,
             Buffer.from(`${mode} ${name}\0`),
-            Buffer.from(hash, 'hex'),
+            Buffer.from(hash, "hex"),
         ]);
     }, Buffer.alloc(0));
 
-    const tree = Buffer.concat([
-        Buffer.from(`tree ${treeData.length}\0`),
-        treeData,
+    // Attach header
+    const treeContents = Buffer.concat([
+        Buffer.from(`tree ${content.length}\x00`),
+        content,
     ]);
 
-    const treeHash = createHash('sha1').update(tree).digest('hex');
-
-    fs.mkdirSync(path.join(BASE_FOLDER_PATH, 'objects', treeHash.slice(0, 2)), { recursive: true });
-
-    fs.writeFileSync(
-        path.join(BASE_FOLDER_PATH, 'objects', treeHash.slice(0, 2), treeHash.slice(2)),
-        zlib.deflateSync(tree)
-    );
-
-    return treeHash;
+    // Create content hash
+    const treeHash = sha1(treeContents);
+    return { hash: treeHash, type: "tree", content: treeContents };
 }
 
-function returnTreeObjectHash() {
-    const treeHash = writeTreeObject();
-    process.stdout.write(treeHash);
-}
+// Parse pack commit object
+function createCommitContent(commit) {
+    if (!commit) {
+        throw new Error("No commit to be found");
+    }
 
-function commitTree(treeSHA, parentCommitSHA, message) {
-    const author = "Your Name <you@example.com>";
-    const timestamp = Math.floor(Date.now() / 1000);
-    const commitData = [
-        `tree ${treeSHA}`,
-        `parent ${parentCommitSHA}`,
-        `author ${author} ${timestamp} +0000`,
-        `committer ${author} ${timestamp} +0000`,
-        '',
-        message,
-        ''
-    ].join('\n');
-
-    const commit = Buffer.concat([
-        Buffer.from(`commit ${commitData.length}\0`),
-        Buffer.from(commitData)
+    // Attach header
+    const content = Buffer.concat([
+        Buffer.from(`commit ${commit.length}\x00`),
+        commit,
     ]);
 
-    const commitHash = createHash('sha1').update(commit).digest('hex');
-
-    fs.mkdirSync(path.join(BASE_FOLDER_PATH, 'objects', commitHash.slice(0, 2)), { recursive: true });
-
-    fs.writeFileSync(
-        path.join(BASE_FOLDER_PATH, 'objects', commitHash.slice(0, 2), commitHash.slice(2)),
-        zlib.deflateSync(commit)
-    );
-
-    return commitHash;
+    const hash = sha1(content);
+    return { hash, content };
 }
 
-function printTreeObject(objectSHA) {
-    const objectPath = path.join(
-        process.cwd(),
+function readGitObject(sha, basePath = "") {
+    // Read git blob based on SHA1 hash
+    const blobPath = path.resolve(
+        basePath,
         ".git",
         "objects",
-        objectSHA.slice(0, 2),
-        objectSHA.slice(2)
+        sha.slice(0, 2),
+        sha.slice(2),
     );
-    const objectContent = fs.readFileSync(objectPath, "base64");
-    const compressedData = Buffer.from(objectContent, "base64");
-    zlib.unzip(compressedData, (err, buffer) => {
-        if (err) {
-            console.error("Error uncompressing data:", err);
-        } else {
-            const uncompressedData = buffer.toString("utf-8");
-            const objectType = uncompressedData.split(" ")[0];
-            switch (objectType) {
-                case "blob":
-                    printBlobObject(uncompressedData);
-                    break;
-                case "tree":
-                    printTree(uncompressedData);
-                    break;
-                case "commit":
-                    console.log("commit");
-                    break;
-                default:
-                    console.log("Unknown object type:", objectType);
-            }
-        }
-    });
-}
 
-function printBlobObject(uncompressedData) {
-    const content = uncompressedData.split("\x00")[1];
-    process.stdout.write(content);
-}
+    const data = fs.readFileSync(blobPath);
+    const dataUncompressed = zlib.unzipSync(data);
 
-function printTree(uncompressedData) {
-    const entries = uncompressedData.split("\x00");
-    entries.shift();
-    entries.pop();
-    for (const entry of entries) {
-        const path = entry.split(" ")[1];
-        path && console.log(path);
+    // Find index header ends
+    const nullByteIndex = dataUncompressed.indexOf("\0");
+    const header = dataUncompressed.toString().slice(0, nullByteIndex).split(" ");
+    const type = header[0];
+    const length = header[1];
+    const content = dataUncompressed.slice(nullByteIndex + 1);
+
+    if (dataUncompressed) {
+        return { type, length, content };
+    } else {
+        throw new Error("Can't read git blob");
     }
 }
+
+function logObjectHashes(title, objects, get = (obj) => obj.parsed.hash) {
+    console.log(`${title} RETRIEVED`);
+    console.log("-----------------------------------");
+    objects.forEach((obj) => console.log(getParsedHash(obj)));
+    console.log("\n");
+}
+
+function parseGitObject(object) {
+    if (object.type != "delta") {
+        let parsed = PARSE_FUNCTIONS[object.type](object.content);
+        return {
+            hash: parsed.hash,
+            type: object.type,
+            parsed: parsed.content,
+            raw: object.content,
+        };
+    } else {
+        throw new Error("Refer to resovle delta function");
+    }
+}
+
+function parseGitObjects(objects) {
+    let gitObjects = {};
+    objects.forEach((obj) => {
+        if (obj.type != "delta") {
+            let parsed = PARSE_FUNCTIONS[obj.type](obj.content);
+            gitObjects[parsed.hash] = {
+                hash: parsed.hash,
+                type: obj.type,
+                parsed: parsed.content,
+                raw: obj.content,
+            };
+        }
+    });
+    return gitObjects;
+}
+
+module.exports = {
+    resolveGitObjectPath,
+    createCommitContent,
+    createBlobContent,
+    createTreeContent,
+    parseTreeEntries,
+    logObjectHashes,
+    parseGitObjects,
+    parseGitObject,
+    writeGitObject,
+    readGitObject,
+    formatBlob,
+    sha1,
+};
