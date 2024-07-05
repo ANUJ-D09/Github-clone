@@ -21,8 +21,16 @@ switch (command) {
         process.stdout.write(hash);
         break;
     case "ls-tree":
-        readTree();
-        break;
+        {
+            const flag = process.argv[3]
+            const treeSHA = process.argv[4]
+            if (flag === "--name-only") {
+                prettyPrintObject(treeSHA)
+            } else {
+                throw new Error(`Unknown flag ${flag}`)
+            }
+            break
+        }
     case "write-tree":
         returnTreeHash();
         break;
@@ -184,4 +192,55 @@ function writeTree(currentPath = process.cwd()) {
 function returnTreeHash() {
     const treeHash = writeTree();
     process.stdout.write(treeHash);
+}
+
+function prettyPrintObject(objectSHA) {
+    const objectPath = path.join(
+        process.cwd(),
+        ".git",
+        "objects",
+        objectSHA.slice(0, 2),
+        objectSHA.slice(2)
+    )
+    const objectContent = fs.readFileSync(objectPath, "base64")
+    const compressedData = Buffer.from(objectContent, "base64")
+    zlib.unzip(compressedData, (err, buffer) => {
+        if (err) {
+            console.error("Error uncompressing data:", err)
+        } else {
+            const uncompressedData = buffer.toString("utf-8")
+            const objectType = uncompressedData.split(" ")[0]
+            switch (objectType) {
+                case "blob":
+                    prettyPrintBlob(uncompressedData)
+                    break
+                case "tree":
+                    prettyPrintTree(uncompressedData)
+                    break
+                case "commit":
+                    console.log("commit")
+                    break
+                default:
+                    console.log("Unknown object type:", objectType)
+            }
+        }
+    })
+}
+
+function prettyPrintBlob(uncompressedData) {
+    const content = uncompressedData.split("\x00")[1]
+    process.stdout.write(content)
+}
+
+function prettyPrintTree(uncompressedData) {
+    const entries = uncompressedData.split("\x00")
+        // Removing the header
+    entries.shift()
+        // Removing the last SHA
+    entries.pop()
+        // console.log(entries)
+    for (const entry of entries) {
+        const path = entry.split(" ")[1]
+        path && console.log(path)
+    }
 }
