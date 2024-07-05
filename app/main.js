@@ -178,7 +178,7 @@ function writeTree(currentPath = process.cwd()) {
 
     fs.writeFileSync(
         path.join(BASE_FOLDER_PATH, 'objects', treeHash.slice(0, 2), treeHash.slice(2)),
-        zlip.deflateSync(tree)
+        zlib.deflateSync(tree)
     );
 
     return treeHash;
