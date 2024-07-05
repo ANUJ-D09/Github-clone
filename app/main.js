@@ -28,41 +28,19 @@ switch (command) {
         }
         if (param === "-w") hashObject(file);
         break;
+
     case "ls-tree":
-        lsTree()
+        const treeHash = process.argv[4];
+        if (!treeHash) {
+            console.error("Error: No hash provided for ls-tree command.");
+            process.exit(1);
+        }
+        lsTree(param, treeHash);
         break;
+
     default:
         console.error(`Unknown command: ${command}`);
         process.exit(1);
-}
-
-function lsTree() {
-    const isNameOnly = process.argv[3];
-    let hash = '';
-    if (isNameOnly === '--name-only') {
-        //display the name only
-        hash = process.argv[4];
-    } else {
-        hash = process.argv[3];
-    }
-    const dirName = hash.slice(0, 2);
-    const fileName = hash.slice(2);
-    const objectPath = path.join(__dirname, '.git', 'objects', dirName, fileName);
-    const dataFromFile = fs.readFileSync(objectPath);
-    //decrypt the data from the file
-    const inflated = zlib.inflateSync(dataFromFile);
-    //notice before encrypting the data what we do was we encrypt
-    //blob length/x00 so to get the previous string back what we need to do is split with /xoo
-    const enteries = inflated.toString('utf-8').split('\x00');
-    //enteries will be [blob length/x00, actual_file_content]
-    const dataFromTree = enteries.slice(1);
-    const names = dataFromTree
-        .filter((line) => line.includes(' '))
-        .map((line) => line.split(' ')[1]);
-    const namesString = names.join('\n');
-    const response = namesString.concat('\n');
-    //this is the regex pattern that tells to replace multiple global \n with single \n
-    process.stdout.write(response.replace(/\n\n/g, '\n'));
 }
 
 function createGitDirectory() {
@@ -107,5 +85,28 @@ function hashObject(file) {
         process.stdout.write(hash);
     } catch (error) {
         console.error(`Error hashing object: ${error.message}`);
+    }
+}
+
+function lsTree(param, hash) {
+    try {
+        const filePath = path.join(process.cwd(), ".git", "objects", hash.slice(0, 2), hash.slice(2));
+        const fileContent = fs.readFileSync(filePath);
+        const inflatedContent = zlib.inflateSync(fileContent);
+        const content = inflatedContent.toString();
+
+        if (param === "--name-only") {
+            const lines = content.split("\n");
+            lines.forEach(line => {
+                const parts = line.split(" ");
+                if (parts.length === 4) {
+                    console.log(parts[3]);
+                }
+            });
+        } else {
+            console.log(content);
+        }
+    } catch (error) {
+        console.error(`Error listing tree: ${error.message}`);
     }
 }
