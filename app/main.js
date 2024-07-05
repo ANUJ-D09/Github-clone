@@ -169,6 +169,7 @@ const createTree = (dirPath) => {
     return treeHash;
 };
 
+
 switch (command) {
     case "init":
         initializeGitDirectory();
