@@ -12,7 +12,15 @@
     "author": "anujda09 <anujdamani9@gmail.com>",
     "license": "MIT",
     "dependencies": {
+        "asynckit": "^0.4.0",
         "axios": "^1.7.2",
+        "combined-stream": "^1.0.8",
+        "delayed-stream": "^1.0.0",
+        "follow-redirects": "^1.15.6",
+        "form-data": "^4.0.0",
+        "mime-db": "^1.52.0",
+        "mime-types": "^2.1.35",
+        "proxy-from-env": "^1.1.0",
         "zlib": "^1.0.5"
     },
     "repository": "https://git.codecrafters.io/414ec2d6f942fdbe"

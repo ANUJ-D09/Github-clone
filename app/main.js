@@ -234,7 +234,7 @@ function printTree(uncompressedData) {
         path && console.log(path);
     }
 }
-sync
+
 
 function main() {
     const [, , command, repoUrl, targetDir] = process.argv;
