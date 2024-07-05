@@ -15,13 +15,13 @@ if (process.argv[3] && process.argv[3].startsWith('-')) {
 
 switch (command) {
     case "init":
-        initializeGitDirectory();
+        codeForgeInitializeGitDirectory();
         break;
     case "cat-file":
-        readBlobObject();
+        codeForgeReadBlobObject();
         break;
     case "hash-object":
-        const hash = writeBlobObject();
+        const hash = codeForgeWriteBlobObject();
         process.stdout.write(hash);
         break;
     case "ls-tree":
@@ -29,7 +29,7 @@ switch (command) {
             const flag = process.argv[3];
             const treeSHA = process.argv[4];
             if (flag === "--name-only") {
-                prettyPrintTreeObject(treeSHA);
+                codeForgeTreeObject(treeSHA);
             } else {
                 throw new Error(`Unknown flag ${flag}`);
             }
@@ -38,11 +38,12 @@ switch (command) {
     case "write-tree":
         returnTreeObjectHash();
         break;
+
     default:
         throw new Error(`Unknown command ${command}`);
 }
 
-function initializeGitDirectory() {
+function codeForgeInitializeGitDirectory() {
     fs.mkdirSync(BASE_FOLDER_PATH, { recursive: true });
     fs.mkdirSync(path.join(BASE_FOLDER_PATH, "objects"), { recursive: true });
     fs.mkdirSync(path.join(BASE_FOLDER_PATH, "refs"), { recursive: true });
@@ -51,7 +52,7 @@ function initializeGitDirectory() {
     console.log("Initialized git directory");
 }
 
-function readBlobObject() {
+function codeForgeReadBlobObject() {
     const blobSha = process.argv[4];
 
     const shaFirst = blobSha.match(/.{1,2}/g)[0];
@@ -64,11 +65,10 @@ function readBlobObject() {
     unzippedData = unzippedData.toString();
 
     unzippedData = unzippedData.split('\0')[1];
-
-    process.stdout.write(unzippedData);
+    ocess.stdout.write(unzippedData);
 }
 
-function writeBlobObject() {
+function codeForgeWriteBlobObject() {
     const fileName = process.argv[4];
 
     const data = fs.readFileSync(fileName);
@@ -89,7 +89,7 @@ function writeBlobObject() {
     return hash;
 }
 
-function readTreeObject() {
+function codeForgeTreeObject() {
     if (flag === '--name-only') {
         const treeSha = process.argv[4];
 
@@ -129,7 +129,7 @@ function writeTreeObject(currentPath = process.cwd()) {
             treeObject.push({
                 mode: '100644',
                 name: content,
-                hash: writeBlobObject(process.argv[4] = entryPath, flag = '')
+                hash: codeForgeWriteBlobObject(process.argv[4] = entryPath, flag = '')
             });
         } else if (stat.isDirectory()) {
             treeObject.push({
@@ -169,51 +169,46 @@ function returnTreeObjectHash() {
     const treeHash = writeTreeObject();
     process.stdout.write(treeHash);
 }
-
-function prettyPrintTreeObject(objectSHA) {
-    const objectPath = path.join(
-        process.cwd(),
-        ".git",
-        "objects",
-        objectSHA.slice(0, 2),
-        objectSHA.slice(2)
-    );
-    const objectContent = fs.readFileSync(objectPath, "base64");
-    const compressedData = Buffer.from(objectContent, "base64");
-    zlib.unzip(compressedData, (err, buffer) => {
-        if (err) {
-            console.error("Error uncompressing data:", err);
-        } else {
-            const uncompressedData = buffer.toString("utf-8");
-            const objectType = uncompressedData.split(" ")[0];
-            switch (objectType) {
-                case "blob":
-                    prettyPrintBlobObject(uncompressedData);
-                    break;
-                case "tree":
-                    prettyPrintTree(uncompressedData);
-                    break;
-                case "commit":
-                    console.log("commit");
-                    break;
-                default:
-                    console.log("Unknown object type:", objectType);
-            }
-        }
+mode: '100644',
+    name: content,
+    hash: codeForgeWriteBlobObject(process.argv[4] = entryPath, flag = '')
+});
+}
+else if (stat.isDirectory()) {
+    treeObject.push({
+        mode: '40000',
+        name: content,
+        hash: writeTreeObject(entryPath)
     });
 }
+});
 
-function prettyPrintBlobObject(uncompressedData) {
-    const content = uncompressedData.split("\x00")[1];
-    process.stdout.write(content);
+const treeData = treeObject.reduce((acc, { mode, name, hash }) => {
+    return Buffer.concat([
+        acc,
+        Buffer.from(`${mode} ${name}\0`),
+        Buffer.from(hash, 'hex'),
+    ]);
+}, Buffer.alloc(0));
+
+const tree = Buffer.concat([
+    Buffer.from(`tree ${treeData.length}\0`),
+    treeData,
+]);
+
+const treeHash = createHash('sha1').update(tree).digest('hex');
+
+fs.mkdirSync(path.join(BASE_FOLDER_PATH, 'objects', treeHash.slice(0, 2)), { recursive: true });
+
+fs.writeFileSync(
+    path.join(BASE_FOLDER_PATH, 'objects', treeHash.slice(0, 2), treeHash.slice(2)),
+    zlib.deflateSync(tree)
+);
+
+return treeHash;
 }
 
-function prettyPrintTree(uncompressedData) {
-    const entries = uncompressedData.split("\x00");
-    entries.shift();
-    entries.pop();
-    for (const entry of entries) {
-        const path = entry.split(" ")[1];
-        path && console.log(path);
-    }
+function returnTreeObjectHash() {
+    const treeHash = writeTreeObject();
+    process.stdout.write(treeHash);
 }
