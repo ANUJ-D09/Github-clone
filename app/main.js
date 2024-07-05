@@ -53,10 +53,10 @@ function readBlob() {
 
 
     //unzip the sha-data
-    let unzipedData = zlip.inflateSync(shaData);
+    let unzipedData = zlib.inflateSync(shaData);
 
     //may there is unzip algrithm used to compressed the data
-    if (!unzipedData) unzipedData = zlip.unzipSync(shaData);
+    if (!unzipedData) unzipedData = zlib.unzipSync(shaData);
     unzipedData = unzipedData.toString()
 
     //after decompression bolb object format: blob <size>\0<content>
