@@ -127,14 +127,14 @@ function treeObject(objectSHA) {
 }
 
 function prettyPrintBlob(content) {
-    process.stdout.write(content + '\n');
+    process.stdout.write(content);
 }
 
 function prettyPrintTree(uncompressedData) {
     const entries = uncompressedData.split("\x00");
-    // Removing the header
+
     entries.shift();
-    // Removing the last SHA
+
     entries.pop();
     for (const entry of entries) {
         const parts = entry.split(" ");
