@@ -100,27 +100,41 @@ function writeBolb() {
 
 function readTree() {
     if (flag === '--name-only') {
-        //get the <tree_sha> from the input
+        // get the <tree_sha> from the input
         const treeSha = process.argv[4];
 
-        //get the file path from that sha
+        // get the file path from that sha
         const compressedData = fs.readFileSync(path.join(BASE_FOLDER_PATH, 'objects', treeSha.slice(0, 2), treeSha.slice(2)));
 
-        //decompress the file
+        // decompress the file
         const decompressData = zlib.inflateSync(compressedData);
 
+        // convert to string and extract the file names and modes correctly
+        let treeData = decompressData.toString();
+        const entries = [];
+        let i = 0;
 
-        //convert to string and split and get the file names 
-        let treeData = decompressData.toString().split(' ');
-        treeData = treeData.slice(2);
-        const fileNames = [];
-        treeData.forEach(name => {
-            fileNames.push(name.split('\0')[0]);
-        });
+        while (i < treeData.length) {
+            // mode and filename are separated by a space
+            const spaceIndex = treeData.indexOf(' ', i);
+            const mode = treeData.substring(i, spaceIndex);
 
-        fileNames.forEach(fileName => console.log(fileName));
+            // null character marks the end of the filename
+            const nullIndex = treeData.indexOf('\0', spaceIndex);
+            const name = treeData.substring(spaceIndex + 1, nullIndex);
+
+            // SHA1 hash is 20 bytes (40 hex characters) after the null character
+            const sha1Hex = Buffer.from(treeData.substring(nullIndex + 1, nullIndex + 21), 'binary').toString('hex');
+
+            entries.push({ mode, name, sha1Hex });
+            i = nullIndex + 21; // move to the next entry
+        }
+
+        // output only the names
+        entries.forEach(entry => console.log(entry.name));
     }
 }
+
 
 function writeTree(currentPath = process.cwd()) {
 
