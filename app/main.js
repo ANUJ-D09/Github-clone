@@ -109,5 +109,5 @@ function lsTree() {
         .concat("\n")
     );
 
-    process.exit(0); // Exit with success code 0
+
 }
