@@ -20,6 +20,10 @@ function initializeGitDirectory() {
     }
 }
 
+function getSHA1(input) {
+    return crypto.createHash("sha1").update(input).digest("hex");
+}
+
 function displayObject(hash) {
     try {
         const filePath = path.join(process.cwd(), ".git", "objects", hash.slice(0, 2), hash.slice(2));
