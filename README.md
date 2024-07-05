@@ -1,60 +1,107 @@
 [![progress-banner](https://backend.codecrafters.io/progress/git/da6f834b-1f36-4fcf-8d45-21fd447adfd6)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
 
-This is a starting point for JavaScript solutions to the
-["Build Your Own Git" Challenge](https://codecrafters.io/challenges/git).
 
-In this challenge, you'll build a small Git implementation that's capable of
-initializing a repository, creating commits and cloning a public repository.
-Along the way we'll learn about the `.git` directory, Git objects (blobs,
-commits, trees etc.), Git's transfer protocols and more.
+# Git-Like Version Control System
 
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
+A lightweight, simplified version control system inspired by Git, implemented in JavaScript. This project allows users to manage their code with features like commits, branches, tags, and remote repository interactions.
 
-# Passing the first stage
+## Features
 
-The entry point for your Git implementation is in `app/main.js`. Study and
-uncomment the relevant code, and push your changes to pass the first stage:
+- **Commit Management:** Create and manage commits.
+- **Branch Management:** Create, list, and retrieve branches.
+- **Tag Management:** Create and retrieve tags.
+- **Remote Repository:** Fetch and push changes to a remote repository.
 
-```sh
-git add .
-git commit -m "pass 1st stage" # any msg
-git push origin master
+## Installation
+
+1. Clone the repository:
+    ```bash
+    git clone https://github.com/yourusername/git-like-vcs.git
+    cd git-like-vcs
+    ```
+
+2. Install the required dependencies:
+    ```bash
+    npm install
+    ```
+
+## Usage
+
+### Initializing a Repository
+
+To initialize a new repository:
+```bash
+node init
 ```
 
-That's all!
+### Adding Files
 
-# Stage 2 & beyond
-
-Note: This section is for stages 2 and beyond.
-
-1. Ensure you have `node (21)` installed locally
-1. Run `./your_git.sh` to run your Git implementation, which is implemented in
-   `app/main.js`.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal.
-
-# Testing locally
-
-The `your_git.sh` script is expected to operate on the `.git` folder inside the
-current working directory. If you're running this inside the root of this
-repository, you might end up accidentally damaging your repository's `.git`
-folder.
-
-We suggest executing `your_git.sh` in a different folder when testing locally.
-For example:
-
-```sh
-mkdir -p /tmp/testing && cd /tmp/testing
-/path/to/your/repo/your_git.sh init
+To add files to the staging area:
+```javascript
+const add = require('./add');
+add('path/to/your/file');
 ```
 
-To make this easier to type out, you could add a
-[shell alias](https://shapeshed.com/unix-alias/):
+### Creating a Commit
 
-```sh
-alias mygit=/path/to/your/repo/your_git.sh
-
-mkdir -p /tmp/testing && cd /tmp/testing
-mygit init
+To create a new commit:
+```javascript
+const createCommit = require('./commit');
+createCommit(treeHash, parentHash, 'Author Name', 'Committer Name', 'Commit message');
 ```
+
+### Creating a Branch
+
+To create a new branch:
+```javascript
+const createBranch = require('./branch');
+createBranch('new-branch-name', 'commit-hash');
+```
+
+### Listing Branches
+
+To list all branches:
+```javascript
+const getBranches = require('./branch');
+console.log(getBranches());
+```
+
+### Creating a Tag
+
+To create a new tag:
+```javascript
+const createTag = require('./tag');
+createTag('v1.0', 'commit-hash');
+```
+
+### Fetching from a Remote Repository
+
+To fetch from a remote repository:
+```javascript
+const fetchRemote = require('./remote');
+fetchRemote('https://your-remote-repo-url.com');
+```
+
+### Pushing to a Remote Repository
+
+To push to a remote repository:
+```javascript
+const pushRemote = require('./remote');
+pushRemote('https://your-remote-repo-url.com', 'branch-name');
+```
+
+## Contributing
+
+Contributions are welcome! Please fork the repository and submit a pull request.
+
+## License
+
+This project is licensed under the MIT License.
+
+## Acknowledgements
+
+This project is inspired by Git and aims to provide a simplified version control system for learning purposes.
+
+```
+
+Replace `https://github.com/yourusername/git-like-vcs.git` with the actual URL of your GitHub repository. This README file covers the basic usage of your project and provides installation and contribution guidelines. Let me know if you need any further customization!
