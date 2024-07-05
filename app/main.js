@@ -2,7 +2,6 @@ const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
 const { createHash } = require("crypto");
-const params = process.argv.slice(3);
 
 const BASE_FOLDER_PATH = path.join(process.cwd(), '.git'); // Base Git folder path
 
@@ -40,49 +39,14 @@ switch (command) {
         returnTreeObjectHash();
         break;
     case "commit-tree":
-        process.stdout.write(commitTree(params));
+        const treeSHA = process.argv[3];
+        const parentCommitSHA = process.argv[5];
+        const message = process.argv[7];
+        const commitSHA = commitTree(treeSHA, parentCommitSHA, message);
+        process.stdout.write(commitSHA);
         break;
-
     default:
         throw new Error(`Unknown command ${command}`);
-}
-
-function commitTree([treeSha, ...params]) {
-    let parentCommit = "";
-    let message = "";
-    const paramIterator = params[Symbol.iterator]();
-    for (const param of paramIterator) {
-        if (param === "-p") {
-            parentCommit = paramIterator.next().value;
-        } else if (param === "-m") {
-            message = paramIterator.next().value;
-        }
-    }
-    if (!message) {
-        throw new Error("Commit message is required");
-    }
-    if (!parentCommit) {
-        throw new Error("Parent commit is required");
-    }
-    const author = "John Doe johndoe@gmail.com";
-    const date = new Date();
-    const timestamp = date.valueOf();
-    const utcOffset = date.getTimezoneOffset();
-    const tree = returnTreeObjectHash();
-    const contents = Buffer.concat([
-        Buffer.from(`tree ${tree}\n`, "utf-8"),
-        Buffer.from(`parent ${parentCommit}\n`, "utf-8"),
-        Buffer.from(`author ${author} ${timestamp} ${utcOffset}\n`, "utf-8"),
-        Buffer.from(`committer ${author} ${timestamp} ${utcOffset}\n`, "utf-8"),
-        Buffer.from("\n", "utf-8"),
-        Buffer.from(`${message}\n`, "utf-8"),
-        Buffer.from("", "utf-8"),
-    ]);
-    const commitData = Buffer.concat([
-        Buffer.from(`commit ${contents.length}\x00`),
-        contents,
-    ]);
-    return returnTreeObjectHash(commitData);
 }
 
 function initializeGitDirectory() {
@@ -130,34 +94,6 @@ function writeBlobObject() {
     }
 
     return hash;
-}
-
-function readTreeObject() {
-    if (flag === '--name-only') {
-        const treeSha = process.argv[4];
-
-        const compressedData = fs.readFileSync(path.join(BASE_FOLDER_PATH, 'objects', treeSha.slice(0, 2), treeSha.slice(2)));
-
-        const decompressedData = zlib.inflateSync(compressedData);
-
-        const entries = [];
-        let i = 0;
-
-        while (i < decompressedData.length) {
-            const spaceIndex = decompressedData.indexOf(0x20, i);
-            const mode = decompressedData.slice(i, spaceIndex).toString();
-
-            const nullIndex = decompressedData.indexOf(0x00, spaceIndex);
-            const name = decompressedData.slice(spaceIndex + 1, nullIndex).toString();
-
-            const sha1Hex = decompressedData.slice(nullIndex + 1, nullIndex + 21).toString('hex');
-
-            entries.push({ mode, name, sha1Hex });
-            i = nullIndex + 21;
-        }
-
-        entries.forEach(entry => console.log(entry.name));
-    }
 }
 
 function writeTreeObject(currentPath = process.cwd()) {
@@ -211,6 +147,36 @@ function writeTreeObject(currentPath = process.cwd()) {
 function returnTreeObjectHash() {
     const treeHash = writeTreeObject();
     process.stdout.write(treeHash);
+}
+
+function commitTree(treeSHA, parentCommitSHA, message) {
+    const author = "Your Name <you@example.com>";
+    const timestamp = Math.floor(Date.now() / 1000);
+    const commitData = [
+        `tree ${treeSHA}`,
+        `parent ${parentCommitSHA}`,
+        `author ${author} ${timestamp} +0000`,
+        `committer ${author} ${timestamp} +0000`,
+        '',
+        message,
+        ''
+    ].join('\n');
+
+    const commit = Buffer.concat([
+        Buffer.from(`commit ${commitData.length}\0`),
+        Buffer.from(commitData)
+    ]);
+
+    const commitHash = createHash('sha1').update(commit).digest('hex');
+
+    fs.mkdirSync(path.join(BASE_FOLDER_PATH, 'objects', commitHash.slice(0, 2)), { recursive: true });
+
+    fs.writeFileSync(
+        path.join(BASE_FOLDER_PATH, 'objects', commitHash.slice(0, 2), commitHash.slice(2)),
+        zlib.deflateSync(commit)
+    );
+
+    return commitHash;
 }
 
 function printTreeObject(objectSHA) {
