@@ -34,7 +34,7 @@ switch (command) {
             const flag = process.argv[3]
             const treeSHA = process.argv[4]
             if (flag === "--name-only") {
-                prettyPrintObject(treeSHA)
+                treeObject(treeSHA)
             } else {
                 throw new Error(`Unknown flag ${flag}`)
             }
@@ -91,7 +91,7 @@ function hashObject(file) {
     }
 }
 
-function prettyPrintObject(objectSHA) {
+function treeObject(objectSHA) {
     const objectPath = path.join(
         process.cwd(),
         ".git",
