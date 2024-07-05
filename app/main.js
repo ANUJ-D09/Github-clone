@@ -103,21 +103,20 @@ function readTree() {
         const decompressData = zlib.inflateSync(compressedData);
 
         // convert to string and extract the file names and modes correctly
-        let treeData = decompressData.toString();
         const entries = [];
         let i = 0;
 
-        while (i < treeData.length) {
+        while (i < decompressData.length) {
             // mode and filename are separated by a space
-            const spaceIndex = treeData.indexOf(' ', i);
-            const mode = treeData.substring(i, spaceIndex);
+            const spaceIndex = decompressData.indexOf(0x20, i); // 0x20 is the ASCII code for space
+            const mode = decompressData.slice(i, spaceIndex).toString();
 
             // null character marks the end of the filename
-            const nullIndex = treeData.indexOf('\0', spaceIndex);
-            const name = treeData.substring(spaceIndex + 1, nullIndex);
+            const nullIndex = decompressData.indexOf(0x00, spaceIndex); // 0x00 is the ASCII code for null
+            const name = decompressData.slice(spaceIndex + 1, nullIndex).toString();
 
             // SHA1 hash is 20 bytes (40 hex characters) after the null character
-            const sha1Hex = Buffer.from(treeData.substring(nullIndex + 1, nullIndex + 21), 'binary').toString('hex');
+            const sha1Hex = decompressData.slice(nullIndex + 1, nullIndex + 21).toString('hex');
 
             entries.push({ mode, name, sha1Hex });
             i = nullIndex + 21; // move to the next entry
@@ -127,6 +126,7 @@ function readTree() {
         entries.forEach(entry => console.log(entry.name));
     }
 }
+
 
 function writeTree(currentPath = process.cwd()) {
     let workingDir = fs.readdirSync(currentPath).filter(item => item !== '.git');
