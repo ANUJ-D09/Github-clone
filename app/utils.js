@@ -2,13 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
 const { createHash } = require("crypto");
-const axios = require("axios");
-const clone = require("./modules/clone");
 
 const BASE_FOLDER_PATH = path.join(process.cwd(), '.git'); // Base Git folder path
-
-
-const argvs = process.argv.slice(3);
 
 // Get the command and the flag from the input
 const command = process.argv[2];
@@ -50,17 +45,6 @@ switch (command) {
         const commitSHA = commitTree(treeSHA, parentCommitSHA, message);
         process.stdout.write(commitSHA);
         break;
-    case "clone":
-        {
-            const repoUrl = process.argv[3];
-            const targetDir = process.argv[4];
-            main(); // Calling main function for cloning
-            break;
-        }
-    case "clone":
-        clone(argvs[0], argvs[1]);
-        break;
-
     default:
         throw new Error(`Unknown command ${command}`);
 }
@@ -242,77 +226,3 @@ function printTree(uncompressedData) {
         path && console.log(path);
     }
 }
-
-async function main() {
-    const [, , command, repoUrl, targetDir] = process.argv;
-
-    if (command !== 'clone' || !repoUrl || !targetDir) {
-        console.error('Usage: your_git.sh clone <repository_url> <directory>');
-        process.exit(1);
-    }
-
-    try {
-        await cloneRepo(repoUrl, targetDir);
-        console.log('Clone completed successfully.');
-    } catch (error) {
-        console.error('Error cloning repository:', error);
-    }
-}
-
-async function cloneRepo(repoUrl, targetDir) {
-    // Create the target directory
-    fs.mkdirSync(targetDir, { recursive: true });
-    process.chdir(targetDir);
-
-    // Initialize the .git directory
-    initializeGitDirectory();
-
-    // Get the repository information
-    const repoInfo = await getRepoInfo(repoUrl);
-    const packFileData = await getPackFile(repoUrl, repoInfo);
-
-    // Process the packfile data
-    processPackFile(packFileData);
-}
-
-function initializeGitDirectory() {
-    const gitDir = '.git';
-    fs.mkdirSync(gitDir, { recursive: true });
-    fs.mkdirSync(path.join(gitDir, 'objects'), { recursive: true });
-    fs.mkdirSync(path.join(gitDir, 'refs'), { recursive: true });
-
-    fs.writeFileSync(path.join(gitDir, 'HEAD'), 'ref: refs/heads/main\n');
-    console.log('Initialized git directory');
-}
-
-async function getRepoInfo(repoUrl) {
-    const infoRefsUrl = `${repoUrl}/info/refs?service=git-upload-pack`;
-    const response = await axios.get(infoRefsUrl, { responseType: 'text' });
-    return response.data;
-}
-
-async function getPackFile(repoUrl, repoInfo) {
-    const packUrl = `${repoUrl}/git-upload-pack`;
-    const response = await axios.post(packUrl, repoInfo, {
-        headers: {
-            'Content-Type': 'application/x-git-upload-pack-request',
-            'Accept': 'application/x-git-upload-pack-result'
-        },
-        responseType: 'arraybuffer'
-    });
-    return response.data;
-}
-
-function processPackFile(packFileData) {
-    try {
-        const inflatedData = zlib.inflateSync(packFileData);
-        // Further processing to unpack the objects and write to the .git/objects directory
-        // This part is complex and requires understanding of the Git packfile format
-        console.log('Pack file data processed:', inflatedData);
-    } catch (error) {
-        console.error('Error processing pack file:', error);
-        throw error;
-    }
-}
-
-main();
