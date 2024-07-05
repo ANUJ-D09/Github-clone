@@ -50,7 +50,7 @@ switch (command) {
         {
             const repoUrl = process.argv[3];
             const targetDir = process.argv[4];
-            cloneRepo(repoUrl, targetDir);
+            main(); // Calling main function for cloning
             break;
         }
     default:
@@ -235,8 +235,7 @@ function printTree(uncompressedData) {
     }
 }
 
-
-function main() {
+async function main() {
     const [, , command, repoUrl, targetDir] = process.argv;
 
     if (command !== 'clone' || !repoUrl || !targetDir) {
@@ -302,5 +301,3 @@ function processPackFile(packFileData) {
     // This part is complex and requires understanding of the Git packfile format
     console.log('Pack file data processed:', inflatedData);
 }
-
-main();
