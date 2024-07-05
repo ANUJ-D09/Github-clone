@@ -38,7 +38,7 @@ switch (command) {
     case "write-tree":
         returnTreeObjectHash();
         break;
-        'commit-tree': () => {
+        'commit-tree' () => {
             const treeSHA = process.argv[3];
             const parentCommitSHA = process.argv.slice(process.argv.indexOf('-p'), process.argv.indexOf('-p') + 2)[1];
             const message = process.argv.slice(process.argv.indexOf('-m'), process.argv.indexOf('-m') + 2)[1];
