@@ -123,50 +123,51 @@ const writeBlob = (filePath) => {
 };
 
 const createTree = (dirPath) => {
-    const filesAndDir = fs
-        .readdirSync(dirPath)
-        .filter((file) => file !== ".git" && file !== "main.js");
-    const entries = [];
-    for (let file of filesAndDir) {
-        const fullPath = path.join(dirPath, file);
-        if (fs.lstatSync(fullPath).isDirectory()) {
-            entries.push({
-                mode: 40000,
-                name: file,
-                hash: createTree(fullPath),
-            });
-        } else {
-            entries.push({
-                mode: 100644,
-                name: file,
-                hash: writeBlob(fullPath),
-            });
+        const filesAndDir = fs
+            .readdirSync(dirPath)
+            .filter((file) => file !== ".git" && file !== "main.js");
+        const entries = [];
+        for (let file of filesAndDir) {
+            const fullPath = path.join(dirPath, file);
+            if (fs.lstatSync(fullPath).isDirectory()) {
+                entries.push({
+                    mode: 40000,
+                    name: file,
+                    hash: createTree(fullPath),
+                });
+            } else {
+                entries.push({
+                    mode: 100644,
+                    name: file,
+                    hash: writeBlob(fullPath),
+                });
+            }
         }
-    }
-    let entriesBuffer = Buffer.alloc(0);
-    for (let entry of entries) {
-        entriesBuffer = Buffer.concat([
+        let entriesBuffer = Buffer.alloc(0);
+        for (let entry of entries) {
+            entriesBuffer = Buffer.concat([
+                entriesBuffer,
+                Buffer.from(`${entry.mode} ${entry.name}\0`),
+                Buffer.from(entry.hash, "hex"),
+            ]);
+        }
+        const treeBuffer = Buffer.concat([
+            Buffer.from(`tree ${entriesBuffer.length}\x00`),
             entriesBuffer,
-            Buffer.from(`${entry.mode} ${entry.name}\0`),
-            Buffer.from(entry.hash, "hex"),
         ]);
-    }
-    const treeBuffer = Buffer.concat([
-        Buffer.from(`tree ${entriesBuffer.length}\x00`),
-        entriesBuffer,
-    ]);
-    const compressedTree = zlib.deflateSync(treeBuffer);
-    const treeHash = getSHA1(treeBuffer);
-    const dir = treeHash.slice(0, 2);
-    const fileName = treeHash.slice(2);
-    fs.mkdirSync(`${path.join(dirPath, ".git", "objects")}/${dir}`, {
-        recursive: true,
-    });
-    fs.writeFileSync(
-        `${path.join(dirPath, ".git", "objects")}/${dir}/${fileName}`,
-        compressedTree
-    );
-    console.log(`Created tree object at: .git/objects/${dir}/${fileName}`); // Debugging output
+        const compressedTree = zlib.deflateSync(treeBuffer);
+        const treeHash = getSHA1(treeBuffer);
+        const dir = treeHash.slice(0, 2);
+        const fileName = treeHash.slice(2);
+        fs.mkdirSync(`${path.join(dirPath, ".git", "objects")}/${dir}`, {
+            recursive: true,
+        });
+        fs.writeFileSync(
+            `${path.join(dirPath, ".git", "objects")}/${dir}/${fileName}`,
+            compressedTree
+        );
+        console.log { fileName }
+        `); // Debugging output
     return treeHash;
 };
 
@@ -200,7 +201,9 @@ switch (command) {
             if (flag === "--name-only") {
                 printObject(treeSHA);
             } else {
-                throw new Error(`Unknown flag ${flag}`);
+                throw new Error(`
+        Unknown flag $ { flag }
+        `);
             }
             break;
         }
@@ -211,6 +214,8 @@ switch (command) {
         break;
 
     default:
-        console.error(`Unknown command: ${command}`);
+        console.error(`
+        Unknown command: $ { command }
+        `);
         process.exit(1);
 }
