@@ -6,7 +6,6 @@ const crypto = require("crypto");
 const command = process.argv[2];
 const param = process.argv[3];
 
-
 function initializeGitDirectory() {
     try {
         const gitDir = path.join(process.cwd(), ".git");
@@ -43,7 +42,7 @@ function computeHashObject(file) {
         const fileContent = fs.readFileSync(filePath);
         const header = `blob ${fileContent.length}\0`;
         const content = Buffer.concat([Buffer.from(header), fileContent]);
-        const hash = crypto.createHash("sha1").update(content).digest("hex");
+        const hash = getSHA1(content);
 
         const dir = path.join(process.cwd(), ".git", "objects", hash.slice(0, 2));
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -145,7 +144,7 @@ const createTree = (dirPath) => {
         }
     }
     let entriesBuffer = Buffer.alloc(0);
-    for (entry of entries) {
+    for (let entry of entries) {
         entriesBuffer = Buffer.concat([
             entriesBuffer,
             Buffer.from(`${entry.mode} ${entry.name}\0`),
@@ -167,9 +166,9 @@ const createTree = (dirPath) => {
         `${path.join(dirPath, ".git", "objects")}/${dir}/${fileName}`,
         compressedTree
     );
+    console.log(`Created tree object at: .git/objects/${dir}/${fileName}`); // Debugging output
     return treeHash;
 };
-
 
 switch (command) {
     case "init":
@@ -207,11 +206,10 @@ switch (command) {
         }
 
     case "write-tree":
-        {
-            const treeHash = createTree(__dirname);
-            process.stdout.write(treeHash);
-            break;
-        }
+        const treeHash = createTree(__dirname);
+        process.stdout.write(treeHash);
+        break;
+
     default:
         console.error(`Unknown command: ${command}`);
         process.exit(1);
