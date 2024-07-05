@@ -6,50 +6,6 @@ const crypto = require("crypto");
 const command = process.argv[2];
 const param = process.argv[3];
 
-switch (command) {
-    case "init":
-        initializeGitDirectory();
-        break;
-
-    case "cat-file":
-        const hash = process.argv[4];
-        if (!hash) {
-            console.error("Error: No hash provided for cat-file command.");
-            process.exit(1);
-        }
-        if (param === "-p") displayObject(hash);
-        break;
-
-    case "hash-object":
-        const file = process.argv[4];
-        if (!file) {
-            console.error("Error: No file provided for hash-object command.");
-            process.exit(1);
-        }
-        if (param === "-w") computeHashObject(file);
-        break;
-
-    case "ls-tree":
-        {
-            const flag = process.argv[3];
-            const treeSHA = process.argv[4];
-            if (flag === "--name-only") {
-                printObject(treeSHA);
-            } else {
-                throw new Error(`Unknown flag ${flag}`);
-            }
-            break;
-        }
-
-    case "write-tree":
-        const treeHash = createTree(__dirname);
-        process.stdout.write(treeHash);
-        break;
-
-    default:
-        console.error(`Unknown command: ${command}`);
-        process.exit(1);
-}
 
 function initializeGitDirectory() {
     try {
@@ -209,3 +165,49 @@ const createTree = (dirPath) => {
     );
     return treeHash;
 };
+
+
+switch (command) {
+    case "init":
+        initializeGitDirectory();
+        break;
+
+    case "cat-file":
+        const hash = process.argv[4];
+        if (!hash) {
+            console.error("Error: No hash provided for cat-file command.");
+            process.exit(1);
+        }
+        if (param === "-p") displayObject(hash);
+        break;
+
+    case "hash-object":
+        const file = process.argv[4];
+        if (!file) {
+            console.error("Error: No file provided for hash-object command.");
+            process.exit(1);
+        }
+        if (param === "-w") computeHashObject(file);
+        break;
+
+    case "ls-tree":
+        {
+            const flag = process.argv[3];
+            const treeSHA = process.argv[4];
+            if (flag === "--name-only") {
+                printObject(treeSHA);
+            } else {
+                throw new Error(`Unknown flag ${flag}`);
+            }
+            break;
+        }
+
+    case "write-tree":
+        const treeHash = createTree(__dirname);
+        process.stdout.write(treeHash);
+        break;
+
+    default:
+        console.error(`Unknown command: ${command}`);
+        process.exit(1);
+}
