@@ -166,7 +166,6 @@ const createTree = (dirPath) => {
         `${path.join(dirPath, ".git", "objects")}/${dir}/${fileName}`,
         compressedTree
     );
-    console.log { fileName }; // Debugging output
     return treeHash;
 };
 
