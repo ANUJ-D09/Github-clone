@@ -30,12 +30,15 @@ function writeTree2(root) {
     const contents = entries.reduce((acc, { mode, name, hash }) => {
         return Buffer.concat([
             acc,
-            Buffer.from(`${mode} ${name}\0`),
+            Buffer.from($ { mode }
+                $ { name }\
+                0),
             Buffer.from(hash, "hex"),
         ]);
     }, Buffer.alloc(0));
     const treeContents = Buffer.concat([
-        Buffer.from(`tree ${contents.length}\x00`),
+        Buffer.from(tree $ { contents.length }\
+            x00),
         contents,
     ]);
     const treeHash = sha1(treeContents);
