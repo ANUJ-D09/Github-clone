@@ -82,7 +82,7 @@ function commitTree([treeSha, ...params]) {
         Buffer.from(`commit ${contents.length}\x00`),
         contents,
     ]);
-    return writeObject(commitData);
+    return returnTreeObjectHash(commitData);
 }
 
 function initializeGitDirectory() {
