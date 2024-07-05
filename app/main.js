@@ -3,8 +3,6 @@ const path = require("path");
 const zlib = require("zlib");
 const { createHash } = require("crypto");
 
-
-
 const BASE_FOLDER_PATH = path.join(process.cwd(), '.git'); //git folder path base
 
 //get the command and the flag from the input
@@ -19,8 +17,8 @@ switch (command) {
         readBlob();
         break;
     case "hash-object":
-        const hash = writeBolb();
-        process.stdout._write(hash);
+        const hash = writeBlob();
+        process.stdout.write(hash);
         break;
     case "ls-tree":
         readTree();
@@ -51,24 +49,21 @@ function readBlob() {
     //read the file from the path specified
     const shaData = fs.readFileSync(path.join(process.cwd(), ".git", "objects", shaFirst, bolbSha.slice(2)));
 
-
     //unzip the sha-data
-    let unzipedData = zlib.inflateSync(shaData);
+    let unzippedData = zlib.inflateSync(shaData);
 
     //may there is unzip algrithm used to compressed the data
-    if (!unzipedData) unzipedData = zlib.unzipSync(shaData);
-    unzipedData = unzipedData.toString()
+    if (!unzippedData) unzippedData = zlib.unzipSync(shaData);
+    unzippedData = unzippedData.toString();
 
     //after decompression bolb object format: blob <size>\0<content>
-    unzipedData = unzipedData.split('\0')[1];
-
+    unzippedData = unzippedData.split('\0')[1];
 
     //log out the data without the newline at the end
-    process.stdout._write(unzipedData);
+    process.stdout.write(unzippedData);
 }
 
-
-function writeBolb() {
+function writeBlob() {
     //get the file name from the input
     const fileName = process.argv[4];
 
@@ -80,7 +75,6 @@ function writeBolb() {
 
     //create a hash object to compute the sha hash of the file algorithm sha1
     const hash = createHash('sha1').update(shaData).digest('hex');
-
 
     // if flag is specified as w then write the file in to the folder
     if (flag === '-w') {
@@ -96,7 +90,6 @@ function writeBolb() {
 
     return hash;
 }
-
 
 function readTree() {
     if (flag === '--name-only') {
@@ -135,41 +128,34 @@ function readTree() {
     }
 }
 
-
 function writeTree(currentPath = process.cwd()) {
-
     let workingDir = fs.readdirSync(currentPath).filter(item => item !== '.git');
     let treeObject = [];
 
-    //Iterate over the files/directories in the working directory
+    // Iterate over the files/directories in the working directory
     workingDir.forEach(content => {
         const entryPath = path.join(currentPath, content);
         const stat = fs.statSync(entryPath);
-        //If the entry is a file, create a blob object and record its SHA hash
-        if (stat.isFile()) {
 
-            //writeBolb(process.argv[4] = content, flag = '-w');
+        // If the entry is a file, create a blob object and record its SHA hash
+        if (stat.isFile()) {
             treeObject.push({
                 mode: '100644',
                 name: content,
-                hash: writeBolb(process.argv[4] = entryPath, flag = '')
-            })
+                hash: writeBlob(process.argv[4] = entryPath, flag = '')
+            });
         }
-
-        //If the entry is a directory, recursively create a tree object and record its SHA hash
+        // If the entry is a directory, recursively create a tree object and record its SHA hash
         else if (stat.isDirectory()) {
-
             treeObject.push({
                 mode: '40000',
                 name: content,
                 hash: writeTree(entryPath)
-            })
+            });
         }
-
     });
 
-    //write the tree object to the .git/objects directory
-
+    // write the tree object to the .git/objects directory
     const treeData = treeObject.reduce((acc, { mode, name, hash }) => {
         return Buffer.concat([
             acc,
@@ -178,15 +164,12 @@ function writeTree(currentPath = process.cwd()) {
         ]);
     }, Buffer.alloc(0));
 
-
     const tree = Buffer.concat([
         Buffer.from(`tree ${treeData.length}\0`),
         treeData,
     ]);
 
-
     const treeHash = createHash('sha1').update(tree).digest('hex');
-
 
     fs.mkdirSync(path.join(BASE_FOLDER_PATH, 'objects', treeHash.slice(0, 2)), { recursive: true });
 
@@ -200,6 +183,5 @@ function writeTree(currentPath = process.cwd()) {
 
 function returnTreeHash() {
     const treeHash = writeTree();
-
-    process.stdout._write(treeHash);
+    process.stdout.write(treeHash);
 }
