@@ -8,7 +8,7 @@ const param = process.argv[3];
 
 switch (command) {
     case "init":
-        createGitDirectory();
+        initializeGitDirectory();
         break;
 
     case "cat-file":
@@ -17,7 +17,7 @@ switch (command) {
             console.error("Error: No hash provided for cat-file command.");
             process.exit(1);
         }
-        if (param === "-p") readObject(hash);
+        if (param === "-p") displayObject(hash);
         break;
 
     case "hash-object":
@@ -26,7 +26,7 @@ switch (command) {
             console.error("Error: No file provided for hash-object command.");
             process.exit(1);
         }
-        if (param === "-w") hashObject(file);
+        if (param === "-w") computeHashObject(file);
         break;
 
     case "ls-tree":
@@ -34,18 +34,21 @@ switch (command) {
             const flag = process.argv[3]
             const treeSHA = process.argv[4]
             if (flag === "--name-only") {
-                prettyPrintObject(treeSHA)
+                printObject(treeSHA)
             } else {
                 throw new Error(`Unknown flag ${flag}`)
             }
             break
         }
+    case "write-tree":
+        returnTreeHash();
+        break;
     default:
         console.error(`Unknown command: ${command}`);
         process.exit(1);
 }
 
-function createGitDirectory() {
+function initializeGitDirectory() {
     try {
         const gitDir = path.join(process.cwd(), ".git");
         fs.mkdirSync(gitDir, { recursive: true });
@@ -58,7 +61,7 @@ function createGitDirectory() {
     }
 }
 
-function readObject(hash) {
+function displayObject(hash) {
     try {
         const filePath = path.join(process.cwd(), ".git", "objects", hash.slice(0, 2), hash.slice(2));
         const fileContent = fs.readFileSync(filePath);
@@ -71,7 +74,7 @@ function readObject(hash) {
     }
 }
 
-function hashObject(file) {
+function computeHashObject(file) {
     try {
         const filePath = path.join(process.cwd(), file);
         const fileContent = fs.readFileSync(filePath);
@@ -90,7 +93,7 @@ function hashObject(file) {
     }
 }
 
-function prettyPrintObject(objectSHA) {
+function printObject(objectSHA) {
     const objectPath = path.join(
         process.cwd(),
         ".git",
@@ -108,10 +111,10 @@ function prettyPrintObject(objectSHA) {
             const objectType = uncompressedData.split(" ")[0]
             switch (objectType) {
                 case "blob":
-                    prettyPrintBlob(uncompressedData)
+                    printBlob(uncompressedData)
                     break
                 case "tree":
-                    prettyPrintTree(uncompressedData)
+                    printTree(uncompressedData)
                     break
                 case "commit":
                     console.log("commit")
@@ -123,13 +126,12 @@ function prettyPrintObject(objectSHA) {
     })
 }
 
-
-function prettyPrintBlob(uncompressedData) {
+function printBlob(uncompressedData) {
     const content = uncompressedData.split("\x00")[1]
     process.stdout.write(content)
 }
 
-function prettyPrintTree(uncompressedData) {
+function printTree(uncompressedData) {
     const entries = uncompressedData.split("\x00")
         // Removing the header
     entries.shift()
@@ -140,4 +142,63 @@ function prettyPrintTree(uncompressedData) {
         const path = entry.split(" ")[1]
         path && console.log(path)
     }
+}
+
+function writeTree(currentPath = process.cwd()) {
+    let workingDir = fs.readdirSync(currentPath).filter(item => item !== '.git');
+    let treeObject = [];
+    //Iterate over the files/directories in the working directory
+    workingDir.forEach(content => {
+        const entryPath = path.join(currentPath, content);
+        const stat = fs.statSync(entryPath);
+        //If the entry is a file, create a blob object and record its SHA hash
+        if (stat.isFile()) {
+            //writeBolb(process.argv[4] = content, flag = '-w');
+            treeObject.push({
+                mode: '100644',
+                name: content,
+                hash: writeBolb(process.argv[4] = entryPath, flag = '')
+            })
+        }
+
+        //If the entry is a directory, recursively create a tree object and record its SHA hash
+        else if (stat.isDirectory()) {
+
+            treeObject.push({
+                mode: '40000',
+                name: content,
+                hash: writeTree(entryPath)
+            })
+        }
+
+    });
+    //write the tree object to the .git/objects directory
+    const treeData = treeObject.reduce((acc, { mode, name, hash }) => {
+        return Buffer.concat([
+            acc,
+            Buffer.from(`${mode} ${name}\0`),
+            Buffer.from(hash, 'hex'),
+        ]);
+    }, Buffer.alloc(0));
+
+    const tree = Buffer.concat([
+        Buffer.from(`tree ${treeData.length}\0`),
+        treeData,
+    ]);
+
+
+    const treeHash = createHash('sha1').update(tree).digest('hex');
+
+    fs.mkdirSync(path.join(BASE_FOLDER_PATH, 'objects', treeHash.slice(0, 2)), { recursive: true });
+    fs.writeFileSync(
+        path.join(BASE_FOLDER_PATH, 'objects', treeHash.slice(0, 2), treeHash.slice(2)),
+        zlip.deflateSync(tree)
+    );
+
+    return treeHash;
+}
+
+function returnTreeHash() {
+    const treeHash = writeTree();
+    process.stdout._write(treeHash);
 }
