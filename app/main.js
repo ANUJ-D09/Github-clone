@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
 const crypto = require("crypto");
+import { createHash, hash } from "crypto";
 
 const command = process.argv[2];
 const param = process.argv[3];
