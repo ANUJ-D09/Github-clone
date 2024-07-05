@@ -7,7 +7,7 @@ const crypto = require("crypto");
 const command = process.argv[2];
 const param = process.argv[3];
 
-const argument = process.argv ? .[3];
+const argument = process.argv[3];
 const filename = process.argv[4];
 switch (command) {
     case "init":
