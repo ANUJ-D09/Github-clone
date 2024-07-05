@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
 const { createHash } = require("crypto");
+const params = process.argv.slice(3);
 
 const BASE_FOLDER_PATH = path.join(process.cwd(), '.git'); // Base Git folder path
 
