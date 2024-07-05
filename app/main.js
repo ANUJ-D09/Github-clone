@@ -39,32 +39,49 @@ switch (command) {
         returnTreeObjectHash();
         break;
     case "commit-tree":
-        process.stdout.write(
-            writeCommitObject(process.argv[3], process.argv[5], process.argv[7])
-        );
+        process.stdout.write(commitTree(params));
         break;
 
     default:
         throw new Error(`Unknown command ${command}`);
 }
 
-function createShaHash(data) {
-    const shaHash = crypto.createHash("sha1");
-    shaHash.update(data);
-    return shaHash.digest("hex");
-}
-
-function writeCommitObject(treeSha, parentSha, commitMsg) {
-    const author = `author Vijaychandra vijaychandra20038@gmail.com ${Math.floor(
-    Date.now() / 1000
-  )}`;
-    const commiter = author;
-    const content = `tree ${treeSha}\nparent ${parentSha}\n${author}\n${commiter}\n\n${commitMsg}\n`;
-    const header = `commit ${content.length}\0`;
-    const commitObject = header + content;
-    const commitHash = createShaHash(commitObject);
-    createObject(sliceHash(commitHash), zlib.deflateSync(commitObject));
-    return commitHash;
+function commitTree([treeSha, ...params]) {
+    let parentCommit = "";
+    let message = "";
+    const paramIterator = params[Symbol.iterator]();
+    for (const param of paramIterator) {
+        if (param === "-p") {
+            parentCommit = paramIterator.next().value;
+        } else if (param === "-m") {
+            message = paramIterator.next().value;
+        }
+    }
+    if (!message) {
+        throw new Error("Commit message is required");
+    }
+    if (!parentCommit) {
+        throw new Error("Parent commit is required");
+    }
+    const author = "John Doe johndoe@gmail.com";
+    const date = new Date();
+    const timestamp = date.valueOf();
+    const utcOffset = date.getTimezoneOffset();
+    const tree = writeTree();
+    const contents = Buffer.concat([
+        Buffer.from(`tree ${tree}\n`, "utf-8"),
+        Buffer.from(`parent ${parentCommit}\n`, "utf-8"),
+        Buffer.from(`author ${author} ${timestamp} ${utcOffset}\n`, "utf-8"),
+        Buffer.from(`committer ${author} ${timestamp} ${utcOffset}\n`, "utf-8"),
+        Buffer.from("\n", "utf-8"),
+        Buffer.from(`${message}\n`, "utf-8"),
+        Buffer.from("", "utf-8"),
+    ]);
+    const commitData = Buffer.concat([
+        Buffer.from(`commit ${contents.length}\x00`),
+        contents,
+    ]);
+    return writeObject(commitData);
 }
 
 function initializeGitDirectory() {
