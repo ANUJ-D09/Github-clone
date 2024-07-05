@@ -296,8 +296,15 @@ async function getPackFile(repoUrl, repoInfo) {
 }
 
 function processPackFile(packFileData) {
-    const inflatedData = zlib.inflateSync(packFileData);
-    // Further processing to unpack the objects and write to the .git/objects directory
-    // This part is complex and requires understanding of the Git packfile format
-    console.log('Pack file data processed:', inflatedData);
+    try {
+        const inflatedData = zlib.inflateSync(packFileData);
+        // Further processing to unpack the objects and write to the .git/objects directory
+        // This part is complex and requires understanding of the Git packfile format
+        console.log('Pack file data processed:', inflatedData);
+    } catch (error) {
+        console.error('Error processing pack file:', error);
+        throw error;
+    }
 }
+
+main();
