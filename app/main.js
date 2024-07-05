@@ -107,7 +107,7 @@ function readTree() {
         const compressedData = fs.readFileSync(path.join(BASE_FOLDER_PATH, 'objects', treeSha.slice(0, 2), treeSha.slice(2)));
 
         //decompress the file
-        const decompressData = zlip.inflateSync(compressedData);
+        const decompressData = zlib.inflateSync(compressedData);
 
 
         //convert to string and split and get the file names 
