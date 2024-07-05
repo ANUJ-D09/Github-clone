@@ -3,7 +3,7 @@ const path = require("path");
 const zlib = require("zlib");
 const { createHash } = require("crypto");
 const axios = require("axios");
-const clone = require("./modules/clone");
+const clone = require("./clone");
 
 const BASE_FOLDER_PATH = path.join(process.cwd(), '.git'); // Base Git folder path
 

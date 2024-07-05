@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
-const { sha1, writeGitObject } = require("app/utils");
+const { sha1, writeGitObject } = require("./utils");
 
 function hashBlob(write, fileName) {
     const filePath = path.resolve(fileName);
