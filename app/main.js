@@ -48,6 +48,12 @@ switch (command) {
         throw new Error(`Unknown command ${command}`);
 }
 
+function createShaHash(data) {
+    const shaHash = crypto.createHash("sha1");
+    shaHash.update(data);
+    return shaHash.digest("hex");
+}
+
 function writeCommitObject(treeSha, parentSha, commitMsg) {
     const author = `author Vijaychandra vijaychandra20038@gmail.com ${Math.floor(
     Date.now() / 1000
