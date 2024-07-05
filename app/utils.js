@@ -9,6 +9,7 @@ const PARSE_FUNCTIONS = {
     commit: createCommitContent,
 };
 
+
 function writeGitObject(hash, content, basePath = "") {
     // Receive a SHA1 hash and file content and write a new git object
 

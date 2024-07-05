@@ -20,7 +20,7 @@ const {
     parseTreeEntries,
     createBlobContent,
     createCommitContent,
-} = require("./utils");
+} = require("app/utils");
 const { Hash } = require("node:crypto");
 
 //clone("https://github.com/codecrafters-io/git-sample-2", "test");
