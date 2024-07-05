@@ -234,33 +234,48 @@ function printTree(uncompressedData) {
         path && console.log(path);
     }
 }
-async function cloneRepo(repoUrl, targetDir) {
+sync
+
+function main() {
+    const [, , command, repoUrl, targetDir] = process.argv;
+
+    if (command !== 'clone' || !repoUrl || !targetDir) {
+        console.error('Usage: your_git.sh clone <repository_url> <directory>');
+        process.exit(1);
+    }
+
     try {
-        // Create the target directory
-        fs.mkdirSync(targetDir, { recursive: true });
-        process.chdir(targetDir);
-
-        // Initialize the .git directory
-        initializeGitDirectory();
-
-        // Get the repository information
-        const repoInfo = await getRepoInfo(repoUrl);
-        const packFileData = await getPackFile(repoUrl, repoInfo);
-
-        // Process the packfile data
-        processPackFile(packFileData);
+        await cloneRepo(repoUrl, targetDir);
+        console.log('Clone completed successfully.');
     } catch (error) {
-        console.error("Error cloning repository:", error);
+        console.error('Error cloning repository:', error);
     }
 }
 
-function initializeGitDirectory() {
-    fs.mkdirSync(BASE_FOLDER_PATH, { recursive: true });
-    fs.mkdirSync(path.join(BASE_FOLDER_PATH, "objects"), { recursive: true });
-    fs.mkdirSync(path.join(BASE_FOLDER_PATH, "refs"), { recursive: true });
+async function cloneRepo(repoUrl, targetDir) {
+    // Create the target directory
+    fs.mkdirSync(targetDir, { recursive: true });
+    process.chdir(targetDir);
 
-    fs.writeFileSync(path.join(process.cwd(), ".git", "HEAD"), "ref: refs/heads/main\n");
-    console.log("Initialized git directory");
+    // Initialize the .git directory
+    initializeGitDirectory();
+
+    // Get the repository information
+    const repoInfo = await getRepoInfo(repoUrl);
+    const packFileData = await getPackFile(repoUrl, repoInfo);
+
+    // Process the packfile data
+    processPackFile(packFileData);
+}
+
+function initializeGitDirectory() {
+    const gitDir = '.git';
+    fs.mkdirSync(gitDir, { recursive: true });
+    fs.mkdirSync(path.join(gitDir, 'objects'), { recursive: true });
+    fs.mkdirSync(path.join(gitDir, 'refs'), { recursive: true });
+
+    fs.writeFileSync(path.join(gitDir, 'HEAD'), 'ref: refs/heads/main\n');
+    console.log('Initialized git directory');
 }
 
 async function getRepoInfo(repoUrl) {
@@ -285,5 +300,7 @@ function processPackFile(packFileData) {
     const inflatedData = zlib.inflateSync(packFileData);
     // Further processing to unpack the objects and write to the .git/objects directory
     // This part is complex and requires understanding of the Git packfile format
-    console.log("Pack file data processed:", inflatedData);
+    console.log('Pack file data processed:', inflatedData);
 }
+
+main();

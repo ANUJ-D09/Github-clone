@@ -12,7 +12,8 @@
     "author": "anujda09 <anujdamani9@gmail.com>",
     "license": "MIT",
     "dependencies": {
-        "axios": "^1.7.2"
+        "axios": "^1.7.2",
+        "zlib": "^1.0.5"
     },
     "repository": "https://git.codecrafters.io/414ec2d6f942fdbe"
 }
