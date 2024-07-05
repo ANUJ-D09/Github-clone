@@ -207,10 +207,11 @@ switch (command) {
         }
 
     case "write-tree":
-        const treeHash = createTree(__dirname);
-        process.stdout.write(treeHash);
-        break;
-
+        {
+            const treeHash = createTree(__dirname);
+            process.stdout.write(treeHash);
+            break;
+        }
     default:
         console.error(`Unknown command: ${command}`);
         process.exit(1);
