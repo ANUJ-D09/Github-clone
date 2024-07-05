@@ -214,3 +214,7 @@ const writeBlobObject = (filePath) => {
     );
     return hashedData;
 };
+
+function getSHA1(input) {
+    return crypto.createHash("sha1").update(input).digest("hex");
+}
