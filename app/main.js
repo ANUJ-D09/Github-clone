@@ -1,7 +1,8 @@
-import * as fs from "fs";
-import * as path from "path";
-import * as zlip from "zlib";
-import { createHash, hash } from "crypto";
+const fs = require("fs");
+const path = require("path");
+const zlib = require("zlib");
+const { createHash } = require("crypto");
+
 
 
 const BASE_FOLDER_PATH = path.join(process.cwd(), '.git'); //git folder path base
