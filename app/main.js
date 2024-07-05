@@ -30,13 +30,16 @@ switch (command) {
         break;
 
     case "ls-tree":
-        const treeHash = process.argv[4];
-        if (!treeHash) {
-            console.error("Error: No hash provided for ls-tree command.");
-            process.exit(1);
+        {
+            const flag = process.argv[3]
+            const treeSHA = process.argv[4]
+            if (flag === "--name-only") {
+                prettyPrintObject(treeSHA)
+            } else {
+                throw new Error(`Unknown flag ${flag}`)
+            }
+            break
         }
-        lsTree(param, treeHash);
-        break;
 
     default:
         console.error(`Unknown command: ${command}`);
@@ -88,25 +91,54 @@ function hashObject(file) {
     }
 }
 
-function lsTree(param, hash) {
-    try {
-        const filePath = path.join(process.cwd(), ".git", "objects", hash.slice(0, 2), hash.slice(2));
-        const fileContent = fs.readFileSync(filePath);
-        const inflatedContent = zlib.inflateSync(fileContent);
-        const content = inflatedContent.toString();
+function prettyPrintObject(objectSHA) {
+    const objectPath = path.join(
+        process.cwd(),
+        ".git",
+        "objects",
+        objectSHA.slice(0, 2),
+        objectSHA.slice(2)
+    );
 
-        if (param === "--name-only") {
-            const lines = content.split("\n");
-            lines.forEach(line => {
-                const parts = line.split(" ");
-                if (parts.length === 4) {
-                    console.log(parts[3]);
-                }
-            });
+    const objectContent = fs.readFileSync(objectPath);
+    zlib.inflate(objectContent, (err, buffer) => {
+        if (err) {
+            console.error("Error uncompressing data:", err);
         } else {
-            console.log(content);
+            const uncompressedData = buffer.toString("utf-8");
+            const content = uncompressedData.split("\x00")[1];
+            process.stdout.write(content + '\n');
+            const objectType = uncompressedData.split(" ")[0];
+            switch (objectType) {
+                case "blob":
+                    prettyPrintBlob(content);
+                    break;
+                case "tree":
+                    prettyPrintTree(uncompressedData);
+                    break;
+                case "commit":
+                    console.log("commit");
+                    break;
+                default:
+                    console.log("Unknown object type:", objectType);
+            }
         }
-    } catch (error) {
-        console.error(`Error listing tree: ${error.message}`);
+    });
+}
+
+function prettyPrintBlob(content) {
+    process.stdout.write(content + '\n');
+}
+
+function prettyPrintTree(uncompressedData) {
+    const entries = uncompressedData.split("\x00");
+    // Removing the header
+    entries.shift();
+    // Removing the last SHA
+    entries.pop();
+    for (const entry of entries) {
+        const parts = entry.split(" ");
+        const path = parts[parts.length - 1];
+        path && console.log(path);
     }
 }
