@@ -38,12 +38,34 @@ switch (command) {
     case "write-tree":
         returnTreeObjectHash();
         break;
-    case "commit-tree":
-        const treeSha = process.argv[3];
-        const parentHash = process.argv[5];
-        const message = process.argv[7];
-        process.stdout.write(createCommit(treeSha, parentHash, message));
-        break;
+        'commit-tree': () => {
+            const treeSHA = process.argv[3];
+            const parentCommitSHA = process.argv.slice(process.argv.indexOf('-p'), process.argv.indexOf('-p') + 2)[1];
+            const message = process.argv.slice(process.argv.indexOf('-m'), process.argv.indexOf('-m') + 2)[1];
+            const commitContentBuffer = Buffer.concat([
+                Buffer.from(`tree ${treeSHA}\n`),
+                Buffer.from(`parent ${parentCommitSHA}\n`),
+                Buffer.from(`author The Commiter <thecommitter@test.com> ${Date.now} +0000\n`),
+                Buffer.from(`commiter The Commiter <thecommitter@test.com> ${Date.now} +0000\n\n`),
+                Buffer.from(`${message}\n`)
+            ]);
+            const commitBuffer = Buffer.concat([
+                Buffer.from(`commit ${commitContentBuffer.length}\0`),
+                commitContentBuffer
+            ]);
+            const commitHash = generateHash(commitBuffer);
+            const compressedCommit = zlib.deflateSync(commitBuffer);
+
+            const dir = commitHash.slice(0, 2);
+            const fileName = commitHash.slice(2);
+            const commitDir = path.resolve(__dirname, '.git', 'objects', dir);
+
+            mkdirSync(commitDir, { recursive: true });
+            writeFileSync(path.resolve(commitDir, fileName), compressedCommit);
+
+            process.stdout.write(commitHash);
+        }
+
     default:
         throw new Error(`Unknown command ${command}`);
 }
@@ -222,32 +244,4 @@ function printTree(uncompressedData) {
         const path = entry.split(" ")[1];
         path && console.log(path);
     }
-}
-
-function createCommit(treeHash, parentHash, message = "") {
-    // 1. generate content
-    // commit {size}\0 {content}
-    //{content} = 1. {tree_sha}, 2. parent, 3.committer 4. commit message
-    // parent {parent1_sha}
-    message += "\n";
-    const treeHeader = `tree ${treeHash}\n`;
-    const parent = `parent ${parentHash}\n`;
-    const unixTimestampSeconds = Math.floor(Date.now() / 1000);
-    const date = new Date();
-    const timezone = date.getTimezoneOffset();
-    const author = `author author_name <author_name.gmail.com> ${unixTimestampSeconds} ${timezone}\n`;
-    const commiter = `commiter jonathan <jonathan@gmail.com> ${unixTimestampSeconds} ${timezone}\n\n`;
-    const contents = Buffer.concat([Buffer.from(treeHeader), Buffer.from(parent), Buffer.from(author), Buffer.from(commiter), Buffer.from(message)]);
-    const commitHeader = `commit ${contents.length}\0`;
-    const store = Buffer.concat([Buffer.from(commitHeader), contents]);
-    const hash = crypto.createHash('sha1').update(store).digest("hex").toString();
-    fs.mkdirSync(path.join(process.cwd(), ".git", "objects", hash.slice(0, 2)), { recursive: true });
-    fs.writeFileSync(path.join(process.cwd(), ".git", "objects", hash.slice(0, 2), hash.slice(2)), zlib.deflateSync(store));
-    return hash;
-
-    //tree {tree_sha}
-    // {parents}
-    // author {author_name} <{author_email}> {author_date_seconds} {author_date_timezone}
-    // committer {committer_name} <{committer_email}> {committer_date_seconds} {committer_date_timezone}
-    // {commit message}
 }
