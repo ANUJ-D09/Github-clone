@@ -9,7 +9,8 @@
     "keywords": [
         "build-your-own-x"
     ],
-    "author": "",
+    "author": "anujda09 <anujdamani9@gmail.com>",
     "license": "MIT",
-    "dependencies": {}
+    "dependencies": {},
+    "repository": "https://git.codecrafters.io/414ec2d6f942fdbe"
 }
