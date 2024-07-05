@@ -122,7 +122,7 @@ const writeBlob = (filePath) => {
     return hashedData;
 };
 
-cconst createTree = (dirPath) => {
+const createTree = (dirPath) => {
     const filesAndDir = fs
         .readdirSync(dirPath)
         .filter((file) => file !== ".git" && file !== "main.js");
