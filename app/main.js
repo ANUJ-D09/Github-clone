@@ -38,37 +38,27 @@ switch (command) {
     case "write-tree":
         returnTreeObjectHash();
         break;
-    case 'commit-tree':
-        () => {
-            const treeSHA = process.argv[3];
-            const parentCommitSHA = process.argv.slice(process.argv.indexOf('-p'), process.argv.indexOf('-p') + 2)[1];
-            const message = process.argv.slice(process.argv.indexOf('-m'), process.argv.indexOf('-m') + 2)[1];
-            const commitContentBuffer = Buffer.concat([
-                Buffer.from(`tree ${treeSHA}\n`),
-                Buffer.from(`parent ${parentCommitSHA}\n`),
-                Buffer.from(`author The Commiter <thecommitter@test.com> ${Date.now} +0000\n`),
-                Buffer.from(`commiter The Commiter <thecommitter@test.com> ${Date.now} +0000\n\n`),
-                Buffer.from(`${message}\n`)
-            ]);
-            const commitBuffer = Buffer.concat([
-                Buffer.from(`commit ${commitContentBuffer.length}\0`),
-                commitContentBuffer
-            ]);
-            const commitHash = generateHash(commitBuffer);
-            const compressedCommit = zlib.deflateSync(commitBuffer);
-
-            const dir = commitHash.slice(0, 2);
-            const fileName = commitHash.slice(2);
-            const commitDir = path.resolve(__dirname, '.git', 'objects', dir);
-
-            mkdirSync(commitDir, { recursive: true });
-            writeFileSync(path.resolve(commitDir, fileName), compressedCommit);
-
-            process.stdout.write(commitHash);
-        }
+    case "commit-tree":
+        process.stdout.write(
+            writeCommitObject(process.argv[3], process.argv[5], process.argv[7])
+        );
+        break;
 
     default:
         throw new Error(`Unknown command ${command}`);
+}
+
+function writeCommitObject(treeSha, parentSha, commitMsg) {
+    const author = `author Vijaychandra vijaychandra20038@gmail.com ${Math.floor(
+    Date.now() / 1000
+  )}`;
+    const commiter = author;
+    const content = `tree ${treeSha}\nparent ${parentSha}\n${author}\n${commiter}\n\n${commitMsg}\n`;
+    const header = `commit ${content.length}\0`;
+    const commitObject = header + content;
+    const commitHash = createShaHash(commitObject);
+    createObject(sliceHash(commitHash), zlib.deflateSync(commitObject));
+    return commitHash;
 }
 
 function initializeGitDirectory() {
