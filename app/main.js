@@ -29,7 +29,7 @@ switch (command) {
         if (param === "-w") hashObject(file);
         break;
     case "ls-tree":
-        createTree();
+        lsTree()
         break;
     default:
         console.error(`Unknown command: ${command}`);
