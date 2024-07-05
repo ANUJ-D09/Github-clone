@@ -68,7 +68,7 @@ function commitTree([treeSha, ...params]) {
     const date = new Date();
     const timestamp = date.valueOf();
     const utcOffset = date.getTimezoneOffset();
-    const tree = writeTree();
+    const tree = write - tree();
     const contents = Buffer.concat([
         Buffer.from(`tree ${tree}\n`, "utf-8"),
         Buffer.from(`parent ${parentCommit}\n`, "utf-8"),
