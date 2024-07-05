@@ -30,8 +30,7 @@ function writeTree2(root) {
     const contents = entries.reduce((acc, { mode, name, hash }) => {
         return Buffer.concat([
             acc,
-            Buffer.from($ { mode }
-                $ { name }\
+            Buffer.from($ { mode } { name }\
                 0),
             Buffer.from(hash, "hex"),
         ]);
