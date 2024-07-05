@@ -34,13 +34,12 @@ switch (command) {
             const flag = process.argv[3]
             const treeSHA = process.argv[4]
             if (flag === "--name-only") {
-                treeObject(treeSHA)
+                prettyPrintObject(treeSHA)
             } else {
                 throw new Error(`Unknown flag ${flag}`)
             }
             break
         }
-
     default:
         console.error(`Unknown command: ${command}`);
         process.exit(1);
@@ -91,19 +90,19 @@ function hashObject(file) {
     }
 }
 
-function treeObject(objectSHA) {
+function prettyPrintObject(objectSHA) {
     const objectPath = path.join(
         process.cwd(),
         ".git",
         "objects",
         objectSHA.slice(0, 2),
         objectSHA.slice(2)
-    );
+    )
     const objectContent = fs.readFileSync(objectPath, "base64")
     const compressedData = Buffer.from(objectContent, "base64")
-    zlib.inflate(objectContent, (err, buffer) => {
+    zlib.unzip(compressedData, (err, buffer) => {
         if (err) {
-            console.error("Error uncompressing data:", err);
+            console.error("Error uncompressing data:", err)
         } else {
             const uncompressedData = buffer.toString("utf-8")
             const objectType = uncompressedData.split(" ")[0]
@@ -121,22 +120,24 @@ function treeObject(objectSHA) {
                     console.log("Unknown object type:", objectType)
             }
         }
-    });
+    })
 }
 
-function prettyPrintBlob(content) {
-    process.stdout.write(content);
+
+function prettyPrintBlob(uncompressedData) {
+    const content = uncompressedData.split("\x00")[1]
+    process.stdout.write(content)
 }
 
 function prettyPrintTree(uncompressedData) {
-    const entries = uncompressedData.split("\x00");
-
-    entries.shift();
-
-    entries.pop();
+    const entries = uncompressedData.split("\x00")
+        // Removing the header
+    entries.shift()
+        // Removing the last SHA
+    entries.pop()
+        // console.log(entries)
     for (const entry of entries) {
-        const parts = entry.split(" ");
-        const path = parts[parts.length - 1];
-        path && console.log(path);
+        const path = entry.split(" ")[1]
+        path && console.log(path)
     }
 }
