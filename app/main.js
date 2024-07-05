@@ -90,7 +90,7 @@ function writeBolb() {
         //to write a file, file name should be hash.slice(2)
         fs.writeFileSync(
             path.join(BASE_FOLDER_PATH, 'objects', hash.slice(0, 2), hash.slice(2)),
-            zlip.deflateSync(shaData)
+            zlib.deflateSync(shaData)
         );
     }
 
