@@ -99,28 +99,26 @@ function treeObject(objectSHA) {
         objectSHA.slice(0, 2),
         objectSHA.slice(2)
     );
-
-    const objectContent = fs.readFileSync(objectPath);
+    const objectContent = fs.readFileSync(objectPath, "base64")
+    const compressedData = Buffer.from(objectContent, "base64")
     zlib.inflate(objectContent, (err, buffer) => {
         if (err) {
             console.error("Error uncompressing data:", err);
         } else {
-            const uncompressedData = buffer.toString("utf-8");
-            const content = uncompressedData.split("\x00")[1];
-            process.stdout.write(content + '\n');
-            const objectType = uncompressedData.split(" ")[0];
+            const uncompressedData = buffer.toString("utf-8")
+            const objectType = uncompressedData.split(" ")[0]
             switch (objectType) {
                 case "blob":
-                    prettyPrintBlob(content);
-                    break;
+                    prettyPrintBlob(uncompressedData)
+                    break
                 case "tree":
-                    prettyPrintTree(uncompressedData);
-                    break;
+                    prettyPrintTree(uncompressedData)
+                    break
                 case "commit":
-                    console.log("commit");
-                    break;
+                    console.log("commit")
+                    break
                 default:
-                    console.log("Unknown object type:", objectType);
+                    console.log("Unknown object type:", objectType)
             }
         }
     });
